@@ -118,6 +118,24 @@ select:focus,input:focus{outline:none;border-color:var(--accent)}
 .cat-row{display:flex;justify-content:space-between;font-size:13.5px}
 .cat-row b{font-family:'Bai Jamjuree'}
 
+/* ภาษี wizard */
+.wiz-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.wiz-step{font-size:12.5px;color:var(--ink2);font-weight:600}
+.opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:9px;background:#fff;font-size:15px}
+.opt small{display:block;color:var(--ink2);font-size:12.5px;margin-top:1px}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.sel,.opt.sel small{color:var(--accent)}
+.warn-txt{display:block;font-size:12.5px;color:var(--warn);margin-top:4px}
+.calc-line{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.calc-line:last-child{border:none}
+.calc-line b{font-family:'Bai Jamjuree';font-variant-numeric:tabular-nums;white-space:nowrap}
+.calc-line .sub{color:var(--ink2);font-size:12.5px}
+.step-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-family:'Bai Jamjuree';font-weight:700;font-size:12px;margin-right:7px;flex-shrink:0}
+.helper-card .pros li{padding:3px 0 3px 24px;position:relative;font-size:13.5px;color:var(--ink2);list-style:none}
+.helper-card .pros li::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:700}
+.helper-card .cons li{padding:3px 0 3px 24px;position:relative;font-size:13.5px;color:var(--ink2);list-style:none}
+.helper-card .cons li::before{content:"!";position:absolute;left:3px;color:var(--warn);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--accent);height:34px}
 /* modal */
 .modal-bg{position:fixed;inset:0;background:rgba(26,32,50,.45);z-index:90;display:none;align-items:flex-end;justify-content:center}
 .modal-bg.show{display:flex}
@@ -584,18 +602,523 @@ function renderSummary(){
 }
 
 /* ===== TAX MODULE (TASK 5-6) ===== */
+/* ตารางอัตราภาษีและเพดานลดหย่อน — เกณฑ์ปีภาษี 2568 (แก้กฎหมายเปลี่ยนได้ที่จุดเดียวนี้) */
+const TAX = {
+  year: 2568,
+  brackets: [                    // [เพดานสะสมของขั้น, อัตรา]
+    [150000, 0], [300000, .05], [500000, .10], [750000, .15],
+    [1000000, .20], [2000000, .25], [5000000, .30], [Infinity, .35]
+  ],
+  expenseRate: .5, expenseCap: 100000,
+  personal: 60000, spouse: 60000,
+  childBase: 30000, childBoost: 60000,
+  parent: 30000, parentMax: 4,
+  ssoCap: 9000,
+  lifeInsCap: 100000, healthInsCap: 25000, lifeHealthCap: 100000,
+  parentHealthCap: 15000,
+  pensionRate: .15, pensionCap: 200000,
+  rmfRate: .30, rmfCap: 500000,
+  pvdRate: .15, pvdCap: 500000,
+  retireGroupCap: 500000,
+  esgRate: .30, esgCap: 300000,
+  homeLoanCap: 100000,
+  donationRate: .10
+};
+
+function bracketTax(net){
+  let tax = 0, prev = 0;
+  const steps = [];
+  for(const [cap, rate] of TAX.brackets){
+    if(net <= prev) break;
+    const upTo = Math.min(net, cap);
+    const amt = upTo - prev;
+    const t = amt * rate;
+    steps.push({from: prev, to: upTo, rate, tax: t});
+    tax += t;
+    prev = cap;
+  }
+  return {tax: Math.round(tax * 100) / 100, steps};
+}
+
+/* คำนวณภาษีทั้งก้อนจาก taxProfile → คืน breakdown ครบทุกขั้น */
+function calcTax(p){
+  const income = Math.max(0, (+p.salaryMonthly || 0) * 12 + (+p.bonus || 0));
+  const expense = Math.min(income * TAX.expenseRate, TAX.expenseCap);
+  const notes = [];
+  const d = [];                          // [label, amount] เรียงโชว์ผู้ใช้
+  const used = {life:0, health:0, parentHealth:0, pension:0, rmf:0, pvd:0, esg:0, homeLoan:0, donEdu:0, donGen:0};
+
+  d.push(['ลดหย่อนส่วนตัว', TAX.personal]);
+  if(p.marital === 'married_no_income') d.push(['คู่สมรสไม่มีเงินได้', TAX.spouse]);
+  const kids = +p.children || 0;
+  if(kids > 0){
+    const boost = Math.min(+p.childrenBoost || 0, Math.max(kids - 1, 0));
+    d.push(['ลูก ' + kids + ' คน', kids * TAX.childBase + boost * (TAX.childBoost - TAX.childBase)]);
+  }
+  const par = Math.min(+p.parents || 0, TAX.parentMax);
+  if(par > 0) d.push(['เลี้ยงดูพ่อแม่ ' + par + ' คน', par * TAX.parent]);
+  const sso = Math.min(+p.sso || 0, TAX.ssoCap);
+  if((+p.sso || 0) > TAX.ssoCap) notes.push('ประกันสังคมใช้ลดหย่อนได้ไม่เกิน ' + fmt(TAX.ssoCap));
+  if(sso > 0) d.push(['ประกันสังคม', sso]);
+
+  const x = p.ded || {};
+  // ประกันชีวิต + สุขภาพ (รวมกันไม่เกิน 100,000)
+  let health = Math.min(+x.health || 0, TAX.healthInsCap);
+  if((+x.health || 0) > TAX.healthInsCap) notes.push('ประกันสุขภาพใช้ได้ไม่เกิน ' + fmt(TAX.healthInsCap));
+  let life = Math.min(+x.life || 0, TAX.lifeInsCap);
+  if((+x.life || 0) > TAX.lifeInsCap) notes.push('ประกันชีวิตใช้ได้ไม่เกิน ' + fmt(TAX.lifeInsCap));
+  if(life + health > TAX.lifeHealthCap){
+    life = Math.max(0, TAX.lifeHealthCap - health);
+    notes.push('ประกันชีวิต + สุขภาพ รวมกันใช้ได้ไม่เกิน ' + fmt(TAX.lifeHealthCap));
+  }
+  if(life > 0) d.push(['ประกันชีวิต', life]);
+  if(health > 0) d.push(['ประกันสุขภาพ', health]);
+  const ph = Math.min(+x.parentHealth || 0, TAX.parentHealthCap);
+  if((+x.parentHealth || 0) > TAX.parentHealthCap) notes.push('ประกันสุขภาพพ่อแม่ใช้ได้ไม่เกิน ' + fmt(TAX.parentHealthCap));
+  if(ph > 0) d.push(['ประกันสุขภาพพ่อแม่', ph]);
+
+  // กลุ่มเกษียณ: บำนาญ + RMF + กองทุนสำรองฯ รวมไม่เกิน 500,000
+  let pension = Math.min(+x.pension || 0, income * TAX.pensionRate, TAX.pensionCap);
+  if((+x.pension || 0) > pension) notes.push('ประกันบำนาญใช้ได้ไม่เกิน 15% ของรายได้ และไม่เกิน ' + fmt(TAX.pensionCap));
+  let rmf = Math.min(+x.rmf || 0, income * TAX.rmfRate, TAX.rmfCap);
+  if((+x.rmf || 0) > rmf) notes.push('RMF ใช้ได้ไม่เกิน 30% ของรายได้ และไม่เกิน ' + fmt(TAX.rmfCap));
+  let pvd = Math.min(+x.pvd || 0, income * TAX.pvdRate, TAX.pvdCap);
+  if((+x.pvd || 0) > pvd) notes.push('กองทุนสำรองเลี้ยงชีพใช้ได้ไม่เกิน 15% ของค่าจ้าง');
+  if(pension + rmf + pvd > TAX.retireGroupCap){
+    notes.push('กลุ่มเกษียณ (บำนาญ + RMF + กองทุนสำรองฯ) รวมกันใช้ได้ไม่เกิน ' + fmt(TAX.retireGroupCap));
+    let over = pension + rmf + pvd - TAX.retireGroupCap;
+    const cut = v => { const c = Math.min(v, over); over -= c; return v - c; };
+    rmf = cut(rmf); pension = cut(pension); pvd = cut(pvd);
+  }
+  if(pension > 0) d.push(['ประกันบำนาญ', pension]);
+  if(rmf > 0) d.push(['กองทุน RMF', rmf]);
+  if(pvd > 0) d.push(['กองทุนสำรองเลี้ยงชีพ/กบข.', pvd]);
+
+  const esg = Math.min(+x.esg || 0, income * TAX.esgRate, TAX.esgCap);
+  if((+x.esg || 0) > esg) notes.push('Thai ESG ใช้ได้ไม่เกิน 30% ของรายได้ และไม่เกิน ' + fmt(TAX.esgCap));
+  if(esg > 0) d.push(['กองทุน Thai ESG', esg]);
+  const homeLoan = Math.min(+x.homeLoan || 0, TAX.homeLoanCap);
+  if((+x.homeLoan || 0) > homeLoan) notes.push('ดอกเบี้ยกู้ซื้อบ้านใช้ได้ไม่เกิน ' + fmt(TAX.homeLoanCap));
+  if(homeLoan > 0) d.push(['ดอกเบี้ยกู้ซื้อบ้าน', homeLoan]);
+
+  // บริจาค: คิดจากเงินได้หลังหักค่าใช้จ่ายและลดหย่อนอื่นแล้ว (การศึกษา/รพ.รัฐ นับ 2 เท่า)
+  const sumBefore = d.reduce((s, r) => s + r[1], 0);
+  const donBase = Math.max(0, income - expense - sumBefore);
+  const donEdu = Math.min((+x.donEdu || 0) * 2, donBase * TAX.donationRate);
+  if((+x.donEdu || 0) * 2 > donEdu && donBase > 0) notes.push('บริจาคการศึกษาใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน');
+  if(donEdu > 0) d.push(['บริจาคการศึกษา/รพ.รัฐ (นับ 2 เท่า)', donEdu]);
+  const donGen = Math.min(+x.donGen || 0, Math.max(0, donBase - donEdu) * TAX.donationRate);
+  if((+x.donGen || 0) > donGen && donBase > 0) notes.push('บริจาคทั่วไปใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน');
+  if(donGen > 0) d.push(['เงินบริจาคทั่วไป', donGen]);
+
+  Object.assign(used, {life, health, parentHealth: ph, pension, rmf, pvd, esg, homeLoan, donEdu, donGen});
+  const totalDed = d.reduce((s, r) => s + r[1], 0);
+  const net = Math.max(0, income - expense - totalDed);
+  const {tax, steps} = bracketTax(net);
+  const withheld = +p.withheld || 0;
+  return {income, expense, deductions: d, totalDed, net, tax, steps, withheld, diff: tax - withheld, notes, used, donBase};
+}
+
+/* อัตราภาษีขั้นสูงสุดของผู้ใช้ (ไว้บอกว่า "ทุก 100 ที่ลดหย่อน ประหยัดราว X") */
+function marginalRate(net){
+  let r = 0, prev = 0;
+  for(const [cap, rate] of TAX.brackets){ if(net > prev) r = rate; prev = cap; }
+  return r;
+}
+/* ประหยัดภาษีจริงถ้าเพิ่มค่าลดหย่อนอีก add บาท */
+function savingIfAdd(calc, add){
+  return Math.round(calc.tax - bracketTax(Math.max(0, calc.net - add)).tax);
+}
+
+/* ---------- การ์ดภาษีบนหน้าแรก ---------- */
 function taxSummaryCard(){
+  if(!db.taxProfile){
+    return `<div class="card">
+      <h3>🧮 ภาษีปีนี้</h3>
+      <div class="label">ยังไม่ได้ประเมิน — ตอบคำถามสั้น ๆ ไม่กี่ข้อ ระบบจะประมาณการภาษี ภ.ง.ด.91 ให้</div>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="go('tax')">ลองประเมินภาษีปีนี้ →</button>
+    </div>`;
+  }
+  const c = calcTax(db.taxProfile);
+  let line;
+  if(c.tax === 0) line = '<span class="chip good" style="font-size:14px">ไม่ต้องเสียภาษี 🎉</span>';
+  else if(c.diff > 0) line = `ต้องจ่ายเพิ่มประมาณ <b class="money r">${baht(c.diff)}</b>`;
+  else if(c.diff < 0) line = `มีสิทธิได้เงินคืนประมาณ <b class="money g">${baht(-c.diff)}</b>`;
+  else line = '<span class="chip good">หักไว้ครบพอดีแล้ว ✓</span>';
   return `<div class="card">
-    <h3>🧮 ภาษีปีนี้</h3>
-    <div class="label">ยังไม่ได้ประเมิน — ตอบคำถามสั้น ๆ ไม่กี่ข้อ ระบบจะประมาณการภาษีให้</div>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="go('tax')">ลองประเมินภาษีปีนี้ →</button>
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h3>🧮 ภาษีปี ${TAX.year}</h3><span class="chip warn">ประมาณการเบื้องต้น</span>
+    </div>
+    <div style="font-size:15px;margin:6px 0 2px">ภาษีทั้งปีราว <b class="money">${baht(c.tax)}</b></div>
+    <div style="font-size:15px">${line}</div>
+    <div class="row2" style="margin-top:12px">
+      <button class="btn btn-ghost" style="padding:10px" onclick="go('tax')">ดูรายละเอียด</button>
+      <button class="btn btn-main" style="padding:10px" onclick="go('reduce')">💡 วิธีลดภาษี</button>
+    </div>
   </div>`;
 }
-function renderTax(){
-  $('#content').innerHTML = '<div class="card"><div class="empty"><span class="big">🚧</span>กำลังสร้างในขั้นถัดไป (TASK 5)</div></div>';
+
+/* ---------- เมนูภาษีของฉัน ---------- */
+let taxWiz = null;      // {step, d} — ระหว่างทำ wizard
+
+function salarySuggest(){
+  const y = String(new Date().getFullYear());
+  const txs = db.transactions.filter(t => t.type === 'in' && t.cat === 'salary' && t.date.startsWith(y));
+  if(!txs.length) return null;
+  const months = new Set(txs.map(t => monthKey(t.date))).size;
+  return Math.round(txs.reduce((s, t) => s + t.amount, 0) / months);
 }
+
+function startTaxWizard(){
+  const p = db.taxProfile;
+  taxWiz = {
+    step: 0,
+    d: p ? JSON.parse(JSON.stringify(p)) : {
+      salaryMonthly:'', bonus:'', withheld:'', skipWithheld:false,
+      marital:'single', children:0, childrenBoost:0, parents:0,
+      ssoMode:'full', sso:TAX.ssoCap, ded:{}
+    }
+  };
+  if(taxWiz.d.ssoMode === undefined) taxWiz.d.ssoMode = 'custom';
+  renderTax();
+}
+
+function renderTax(){
+  if(taxWiz){ renderWizStep(); return; }
+  if(db.taxProfile){ renderTaxResult(); return; }
+  $('#content').innerHTML = `
+    <div class="card" style="text-align:center;padding:30px 20px">
+      <div style="font-size:44px">🧮</div>
+      <h3 style="font-size:20px;margin:10px 0 6px">รู้ภาษีปีนี้ของคุณใน 2 นาที</h3>
+      <div class="label" style="max-width:400px;margin:0 auto 4px">ตอบคำถามง่าย ๆ 5 ขั้น ไม่ต้องรู้เรื่องภาษีมาก่อน
+      ข้อไหนไม่รู้กด "ข้าม" ได้ ระบบจะประมาณการภาษี ภ.ง.ด.91 ของทั้งปีให้ พร้อมบอกวิธีลด</div>
+      <button class="btn btn-main btn-block" style="margin-top:16px;padding:14px;font-size:16px" onclick="startTaxWizard()">เริ่มเลย →</button>
+    </div>
+    <div class="card">
+      <h3>ภ.ง.ด.91 คืออะไร?</h3>
+      <div class="label" style="font-size:13.5px">แบบยื่นภาษีเงินได้ประจำปีสำหรับคนที่มี<b>รายได้จากงานประจำอย่างเดียว</b>
+      (เงินเดือน โบนัส) ปกติยื่นช่วง ม.ค.–มี.ค. ของปีถัดไป — แอพนี้ช่วยประมาณการล่วงหน้าว่าจะต้องจ่ายเท่าไหร่
+      และควรเตรียมตัวยังไงก่อนสิ้นปี</div>
+    </div>`;
+}
+
+const WIZ_TOTAL = 5;
+function wizTop(title, sub){
+  const s = taxWiz.step + 1;
+  return `<div class="wiz-top">
+      <span class="wiz-step">ขั้นตอน ${s} / ${WIZ_TOTAL}</span>
+      <button class="wiz-step" style="cursor:pointer" onclick="if(confirm('ออกจากแบบประเมินใช่ไหม?')){taxWiz=null;renderTax()}">✕ ออก</button>
+    </div>
+    <div class="meter" style="margin:0 0 14px"><i style="width:${s / WIZ_TOTAL * 100}%"></i></div>
+    <h3 style="font-size:18px;margin-bottom:4px">${title}</h3>
+    <div class="label" style="margin-bottom:12px">${sub}</div>`;
+}
+function wizNav(nextLabel){
+  return `<div class="row2" style="margin-top:16px">
+    ${taxWiz.step > 0 ? '<button class="btn btn-ghost" onclick="wizGo(-1)">← ย้อนกลับ</button>' : '<span></span>'}
+    <button class="btn btn-main" onclick="wizGo(1)">${nextLabel || 'ถัดไป →'}</button>
+  </div>`;
+}
+function wizGo(dir){
+  const d = taxWiz.d;
+  if(dir > 0){
+    if(taxWiz.step === 0){
+      const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0);
+      if(income <= 0){ toast('ใส่เงินเดือนก่อนนะ'); return; }
+    }
+    if(taxWiz.step === WIZ_TOTAL - 1){
+      db.taxProfile = JSON.parse(JSON.stringify(d));
+      save(); taxWiz = null;
+      toast('ประเมินเสร็จแล้ว 🎉');
+      renderTax();
+      return;
+    }
+  }
+  taxWiz.step += dir;
+  renderTax();
+}
+
+function renderWizStep(){
+  const d = taxWiz.d;
+  let html = '';
+  if(taxWiz.step === 0){
+    const sug = salarySuggest();
+    html = wizTop('รายได้ของคุณ 💰', 'นับเฉพาะรายได้จากงานประจำ (ตามแบบ ภ.ง.ด.91)') + `
+      <div class="field"><label class="label">เงินเดือน (บาทต่อเดือน)</label>
+        <input type="number" min="0" value="${d.salaryMonthly}" placeholder="เช่น 30000"
+          oninput="taxWiz.d.salaryMonthly=this.value;updateIncomeHint()">
+        ${sug ? `<button class="chip info" style="margin-top:7px;cursor:pointer" onclick="taxWiz.d.salaryMonthly=${sug};renderTax()">📒 ใช้จากที่จดไว้: ${fmt(sug)}/เดือน</button>` : ''}
+      </div>
+      <div class="field"><label class="label">โบนัส + รายได้อื่นจากงานทั้งปี (ไม่มีใส่ 0)</label>
+        <input type="number" min="0" value="${d.bonus}" placeholder="0"
+          oninput="taxWiz.d.bonus=this.value;updateIncomeHint()"></div>
+      <div class="hint" id="incomeHint" style="display:none"></div>` + wizNav();
+  }
+  else if(taxWiz.step === 1){
+    html = wizTop('ภาษีที่ถูกหักไว้แล้ว 🧾', 'บริษัทมักหักภาษีจากเงินเดือนไว้ล่วงหน้าทุกเดือน ดูจากสลิปเงินเดือนบรรทัด "ภาษีหัก ณ ที่จ่าย" รวมทั้งปีเป็นเท่าไหร่') + `
+      <div class="field"><label class="label">ภาษีที่ถูกหักไว้ทั้งปี (บาท)</label>
+        <input type="number" min="0" value="${d.withheld}" placeholder="เช่น 12000"
+          oninput="taxWiz.d.withheld=this.value"></div>
+      <button class="btn btn-ghost btn-block" onclick="taxWiz.d.withheld=0;wizGo(1)">ไม่รู้ ข้ามไปก่อน (คิดเป็น 0)</button>
+      <div class="hint">💡 ถ้าถูกหักไว้มากกว่าภาษีจริง สิ้นปีมีสิทธิ<b>ขอเงินคืน</b>ได้</div>` + wizNav();
+  }
+  else if(taxWiz.step === 2){
+    const kids = +d.children || 0;
+    html = wizTop('ครอบครัวของคุณ 👨‍👩‍👧', 'คนในครอบครัวช่วยลดภาษีได้ — ตอบตามจริงพอ') + `
+      <div class="label" style="margin-bottom:7px">สถานภาพ</div>
+      <button class="opt ${d.marital==='single'?'sel':''}" onclick="taxWiz.d.marital='single';renderTax()">🙋 โสด</button>
+      <button class="opt ${d.marital==='married_no_income'?'sel':''}" onclick="taxWiz.d.marital='married_no_income';renderTax()">💍 สมรส — คู่สมรสไม่มีรายได้<small>ลดหย่อนเพิ่มได้ ${fmt(TAX.spouse)}</small></button>
+      <button class="opt ${d.marital==='married_income'?'sel':''}" onclick="taxWiz.d.marital='married_income';renderTax()">💍 สมรส — คู่สมรสมีรายได้<small>ต่างคนต่างยื่นของตัวเอง</small></button>
+      <div class="row2" style="margin-top:10px">
+        <div class="field"><label class="label">มีลูกกี่คน</label>
+          <input type="number" min="0" max="15" value="${kids}" oninput="taxWiz.d.children=this.value;updateBoostBox()"></div>
+        <div class="field"><label class="label">พ่อแม่ที่ดูแลอยู่ (คน)</label>
+          <input type="number" min="0" max="4" value="${d.parents||0}" oninput="taxWiz.d.parents=this.value"></div>
+      </div>
+      <div id="boostBox"></div>
+      <div class="hint">พ่อแม่ที่นับได้: อายุ 60 ปีขึ้นไป รายได้ทั้งปีไม่เกิน 30,000 และเราเป็นคนดูแล (นับรวมพ่อแม่คู่สมรสได้ สูงสุด 4 คน)</div>` + wizNav();
+  }
+  else if(taxWiz.step === 3){
+    html = wizTop('ประกันสังคม 🏥', 'มนุษย์เงินเดือนเกือบทุกคนถูกหักเข้าประกันสังคมอยู่แล้ว เอามาลดภาษีได้') + `
+      <button class="opt ${d.ssoMode==='full'?'sel':''}" onclick="taxWiz.d.ssoMode='full';taxWiz.d.sso=${TAX.ssoCap};renderTax()">✅ จ่ายปกติทั้งปี (พนักงานบริษัท)<small>ระบบใส่ให้ ${fmt(TAX.ssoCap)} (เพดานสูงสุด)</small></button>
+      <button class="opt ${d.ssoMode==='custom'?'sel':''}" onclick="taxWiz.d.ssoMode='custom';renderTax()">✏️ กรอกยอดเอง<small>เช่น ทำงานไม่เต็มปี</small></button>
+      <button class="opt ${d.ssoMode==='none'?'sel':''}" onclick="taxWiz.d.ssoMode='none';taxWiz.d.sso=0;renderTax()">❌ ไม่ได้จ่ายประกันสังคม</button>
+      ${d.ssoMode === 'custom' ? `<div class="field"><label class="label">ยอดประกันสังคมทั้งปี (บาท)</label>
+        <input type="number" min="0" value="${d.sso||''}" placeholder="ไม่เกิน ${fmt(TAX.ssoCap)}"
+          oninput="taxWiz.d.sso=this.value;document.getElementById('ssoWarn').style.display=(+this.value>${TAX.ssoCap})?'block':'none'">
+        <span class="warn-txt" id="ssoWarn" style="display:none">⚠️ เกินเพดาน — ใช้ลดหย่อนได้สูงสุด ${fmt(TAX.ssoCap)}</span></div>` : ''}` + wizNav();
+  }
+  else if(taxWiz.step === 4){
+    const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0);
+    d.ded = d.ded || {};
+    const fields = [
+      ['life',        '🛡️ ประกันชีวิต (เบี้ยที่จ่ายปีนี้)',            TAX.lifeInsCap],
+      ['health',      '🏥 ประกันสุขภาพตัวเอง',                        TAX.healthInsCap],
+      ['parentHealth','👨‍👩‍👧 ประกันสุขภาพพ่อแม่',                        TAX.parentHealthCap],
+      ['pension',     '👴 ประกันบำนาญ',                               Math.min(income * TAX.pensionRate, TAX.pensionCap)],
+      ['rmf',         '📈 กองทุน RMF',                                Math.min(income * TAX.rmfRate, TAX.rmfCap)],
+      ['pvd',         '🏦 กองทุนสำรองเลี้ยงชีพ / กบข. (ส่วนที่เราจ่าย)', Math.min(income * TAX.pvdRate, TAX.pvdCap)],
+      ['esg',         '🌱 กองทุน Thai ESG',                            Math.min(income * TAX.esgRate, TAX.esgCap)],
+      ['homeLoan',    '🏠 ดอกเบี้ยกู้ซื้อบ้าน',                        TAX.homeLoanCap],
+      ['donEdu',      '🏫 บริจาคการศึกษา/รพ.รัฐ (e-Donation)',          null],
+      ['donGen',      '🙏 เงินบริจาคทั่วไป',                           null]
+    ];
+    html = wizTop('ลดหย่อนที่มีอยู่แล้ว 📋', 'ปีนี้จ่ายอะไรพวกนี้ไปแล้วบ้าง ใส่ยอดทั้งปี · ไม่มีหรือไม่รู้ ปล่อยว่างแล้วไปต่อได้เลย') +
+      fields.map(([k, label, cap]) => `
+        <div class="field"><label class="label">${label}${cap !== null ? ' <span style="opacity:.7">(เพดาน ' + fmt(Math.floor(cap)) + ')</span>' : ''}</label>
+          <input type="number" min="0" value="${d.ded[k] ?? ''}" placeholder="0"
+            oninput="taxWiz.d.ded['${k}']=this.value;${cap !== null ? `document.getElementById('w_${k}').style.display=(+this.value>${cap})?'block':'none'` : ''}">
+          ${cap !== null ? `<span class="warn-txt" id="w_${k}" style="display:${(+d.ded[k] || 0) > cap ? 'block' : 'none'}">⚠️ เกินเพดาน — ระบบจะคิดให้ที่ ${fmt(Math.floor(cap))}</span>` : ''}
+        </div>`).join('') +
+      `<div class="hint">กลุ่มเกษียณ (บำนาญ + RMF + กองทุนสำรองฯ) รวมกันใช้ได้ไม่เกิน ${fmt(TAX.retireGroupCap)} · เงินบริจาคใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน</div>` +
+      wizNav('ดูผลภาษีของฉัน 🎉');
+  }
+  $('#content').innerHTML = `<div class="card">${html}</div>`;
+  if(taxWiz.step === 0) updateIncomeHint();
+  if(taxWiz.step === 2) updateBoostBox();
+  window.scrollTo(0, 0);
+}
+/* อัปเดตเฉพาะจุดระหว่างพิมพ์ — ห้าม re-render ทั้งหน้า ไม่งั้นปุ่ม "ถัดไป" ต้องกด 2 ครั้ง */
+function updateIncomeHint(){
+  const el = document.getElementById('incomeHint');
+  if(!el || !taxWiz) return;
+  const income = (+taxWiz.d.salaryMonthly || 0) * 12 + (+taxWiz.d.bonus || 0);
+  el.style.display = income > 0 ? 'block' : 'none';
+  if(income > 0) el.innerHTML = 'รวมรายได้ทั้งปีประมาณ <b class="money">' + baht(income) + '</b>';
+}
+function updateBoostBox(){
+  const el = document.getElementById('boostBox');
+  if(!el || !taxWiz) return;
+  const kids = +taxWiz.d.children || 0;
+  el.innerHTML = kids >= 2 ? `<div class="field"><label class="label">ในจำนวนนี้ ลูกคนที่ 2 เป็นต้นไปที่เกิดปี 2561 ขึ้นไป มีกี่คน</label>
+    <input type="number" min="0" max="${kids-1}" value="${taxWiz.d.childrenBoost||0}" oninput="taxWiz.d.childrenBoost=this.value">
+    <span class="warn-txt" style="color:var(--ink2)">คนกลุ่มนี้ลดหย่อนได้ ${fmt(TAX.childBoost)} (ปกติ ${fmt(TAX.childBase)})</span></div>` : '';
+  if(kids < 2) taxWiz.d.childrenBoost = 0;
+}
+
+function renderTaxResult(){
+  const c = calcTax(db.taxProfile);
+  let headline, headColor;
+  if(c.tax === 0){ headline = 'ไม่ต้องเสียภาษี 🎉'; headColor = 'var(--good)'; }
+  else if(c.diff > 0){ headline = 'ต้องจ่ายเพิ่มประมาณ ' + baht(c.diff); headColor = 'var(--bad)'; }
+  else if(c.diff < 0){ headline = 'มีสิทธิได้เงินคืนประมาณ ' + baht(-c.diff); headColor = 'var(--good)'; }
+  else { headline = 'หักไว้ครบพอดีแล้ว ✓'; headColor = 'var(--good)'; }
+  const exempt = TAX.brackets[0][0];
+  $('#content').innerHTML = `
+    <div class="card" style="text-align:center">
+      <div class="label">ภาษีปี ${TAX.year} ทั้งปีของคุณราว ๆ</div>
+      <div class="money" style="font-size:36px;margin:2px 0">${baht(c.tax)}</div>
+      <div style="font-family:'Bai Jamjuree';font-weight:600;font-size:17px;color:${headColor}">${headline}</div>
+      ${c.withheld > 0 ? `<div class="label" style="margin-top:4px">(ถูกหักไว้ระหว่างปีแล้ว ${fmt(c.withheld)})</div>` : ''}
+      <div style="margin-top:10px"><span class="chip warn">⚠️ ประมาณการเบื้องต้น — ก่อนยื่นจริงตรวจกับกรมสรรพากรอีกครั้ง</span></div>
+    </div>
+    ${c.tax > 0 ? `<button class="btn btn-main btn-block" style="margin-bottom:14px" onclick="go('reduce')">💡 ดูวิธีลดภาษีก้อนนี้ →</button>` : ''}
+    <div class="card">
+      <h3>คิดมายังไง? ดูทีละขั้น</h3>
+      <div class="calc-line"><span><span class="step-num">1</span>รายได้ทั้งปี</span><b>${baht(c.income)}</b></div>
+      <div class="calc-line"><span><span class="step-num">2</span>หักค่าใช้จ่าย <span class="sub">(50% ไม่เกิน 100,000 — กฎหมายให้ทุกคน)</span></span><b class="g">−${fmt(c.expense)}</b></div>
+      <div class="calc-line"><span><span class="step-num">3</span>หักค่าลดหย่อนรวม <span class="sub">(รายการด้านล่าง)</span></span><b class="g">−${fmt(c.totalDed)}</b></div>
+      <div class="calc-line"><span><span class="step-num">4</span><b>เงินได้สุทธิ</b> <span class="sub">(ตัวเลขที่เอาไปคิดภาษีจริง ๆ)</span></span><b>${baht(c.net)}</b></div>
+    </div>
+    <div class="card">
+      <h3>ค่าลดหย่อนของคุณ</h3>
+      ${c.deductions.map(([l, v]) => `<div class="calc-line"><span>${l}</span><b>${fmt(v)}</b></div>`).join('')}
+      <div class="calc-line"><span><b>รวม</b></span><b>${fmt(c.totalDed)}</b></div>
+    </div>
+    <div class="card">
+      <h3>ภาษีขั้นบันได</h3>
+      <div class="label" style="margin-bottom:6px">เงินได้สุทธิถูกหั่นเป็นช่วง ๆ แต่ละช่วงเสียภาษีไม่เท่ากัน (ช่วงแรกไม่เสียเลย)</div>
+      ${c.net === 0 ? `<div class="calc-line"><span>เงินได้สุทธิเป็น 0</span><b class="g">ไม่ต้องเสียภาษี</b></div>` :
+        c.steps.map(s => `<div class="calc-line">
+          <span>${fmt(s.from + (s.from ? 1 : 0))} – ${fmt(s.to)} <span class="sub">(${s.rate === 0 ? 'ยกเว้น' : Math.round(s.rate * 100) + '%'})</span></span>
+          <b>${s.rate === 0 ? '0' : fmt(Math.round(s.tax))}</b></div>`).join('')}
+      <div class="calc-line"><span><b>รวมภาษีทั้งปี</b></span><b>${baht(c.tax)}</b></div>
+      ${c.withheld > 0 ? `<div class="calc-line"><span>หักไว้แล้วระหว่างปี</span><b class="g">−${fmt(c.withheld)}</b></div>
+        <div class="calc-line"><span><b>${c.diff >= 0 ? 'ต้องจ่ายเพิ่ม' : 'ได้เงินคืน'}</b></span><b style="color:${headColor}">${baht(Math.abs(c.diff))}</b></div>` : ''}
+    </div>
+    ${c.notes.length ? `<div class="card"><h3>⚠️ ข้อสังเกต</h3>${c.notes.map(n => `<div class="calc-line"><span>${n}</span></div>`).join('')}</div>` : ''}
+    <div class="row2">
+      <button class="btn btn-ghost" onclick="startTaxWizard()">✏️ แก้ไขข้อมูล</button>
+      <button class="btn btn-main" onclick="go('reduce')">💡 วิธีลดภาษี</button>
+    </div>
+    <div class="hint" style="margin-top:12px">ผลนี้เป็นการประมาณการเบื้องต้นจากข้อมูลที่กรอก อ้างอิงเกณฑ์ปีภาษี ${TAX.year} ไม่ใช่คำแนะนำทางภาษีอย่างเป็นทางการ โปรดตรวจสอบกับกรมสรรพากร (rd.go.th) หรือผู้เชี่ยวชาญก่อนยื่นแบบ</div>`;
+}
+
+/* ---------- เมนูลดภาษี ---------- */
+const HELPERS = [
+  {k:'rmf', emoji:'📈', name:'กองทุน RMF',
+   what:'กองทุนรวมเพื่อการเกษียณ — ซื้อปีไหนลดภาษีปีนั้น เงินไปลงทุนต่อให้เราจนเกษียณ',
+   pros:['ลดหย่อนได้เยอะสุดตัวหนึ่ง (30% ของรายได้ ไม่เกิน 500,000)','เลือกความเสี่ยงได้ ตั้งแต่เสี่ยงต่ำถึงหุ้นล้วน','ได้เก็บเงินเกษียณไปในตัว'],
+   cons:['ต้องถือถึงอายุ 55 และซื้อต่อเนื่องทุกปี (เว้นได้ไม่เกิน 1 ปี)','ขายก่อนกำหนดต้องคืนภาษีที่เคยได้','มูลค่าขึ้นลงตามตลาด ขาดทุนได้']},
+  {k:'esg', emoji:'🌱', name:'กองทุน Thai ESG',
+   what:'กองทุนหุ้น/ตราสารหนี้ไทยกลุ่มความยั่งยืน — เพดานแยกต่างหาก ไม่เบียดโควตากลุ่มเกษียณ',
+   pros:['เพดานแยกจาก RMF/ประกันบำนาญ (30% ไม่เกิน 300,000)','ถือแค่ 5 ปีเต็ม สั้นกว่า RMF มาก','ไม่ต้องซื้อต่อเนื่องทุกปี'],
+   cons:['ลงทุนในไทยเป็นหลัก ราคาผันผวนได้','ขายก่อนครบ 5 ปีต้องคืนภาษี','เงื่อนไขอาจเปลี่ยนตามประกาศรัฐแต่ละปี']},
+  {k:'life', emoji:'🛡️', name:'ประกันชีวิต',
+   what:'จ่ายเบี้ยรายปี ได้ความคุ้มครองชีวิต + บางแบบมีเงินคืน/สะสมทรัพย์',
+   pros:['คุ้มครองครอบครัวถ้าเกิดอะไรขึ้นกับเรา','แบบสะสมทรัพย์ได้เงินคืนตอนครบสัญญา','ลดหย่อนได้ถึง 100,000'],
+   cons:['ต้องเป็นกรมธรรม์คุ้มครอง 10 ปีขึ้นไป','เวนคืนก่อนกำหนดมักขาดทุน และอาจต้องคืนภาษี','ผูกพันจ่ายเบี้ยทุกปี']},
+  {k:'health', emoji:'🏥', name:'ประกันสุขภาพ',
+   what:'จ่ายเบี้ยรายปี ป่วยเข้าโรงพยาบาลมีคนช่วยจ่ายค่ารักษา',
+   pros:['ช่วยค่ารักษายามป่วย ไม่ต้องควักเงินก้อน','ลดหย่อนได้ถึง 25,000','ซื้อคู่กับประกันชีวิตได้'],
+   cons:['รวมกับประกันชีวิตแล้วต้องไม่เกิน 100,000','เบี้ยเป็นแบบจ่ายทิ้ง ไม่มีเงินคืน','เบี้ยแพงขึ้นตามอายุ']},
+  {k:'pension', emoji:'👴', name:'ประกันบำนาญ',
+   what:'จ่ายเบี้ยช่วงทำงาน แล้วรับเงินคืนเป็นรายปีหลังเกษียณแบบการันตี',
+   pros:['การันตีเงินใช้หลังเกษียณ ไม่ผันผวนตามตลาด','เพดานลดหย่อนสูง (15% ไม่เกิน 200,000)','เหมาะกับคนไม่ชอบความเสี่ยง'],
+   cons:['ผูกพันจ่ายเบี้ยยาวหลายปี','เอาเงินออกก่อนกำหนดแทบไม่ได้','ผลตอบแทนมักต่ำกว่าการลงทุนเอง']},
+  {k:'parentHealth', emoji:'👨‍👩‍👧', name:'ประกันสุขภาพพ่อแม่',
+   what:'ซื้อประกันสุขภาพให้พ่อแม่ เบี้ยเอามาลดภาษีเราได้',
+   pros:['แบ่งเบาค่ารักษาพ่อแม่ยามป่วย','ลดหย่อนได้ถึง 15,000','ลูกหลายคนช่วยกันจ่ายแบ่งลดหย่อนได้'],
+   cons:['พ่อแม่ต้องมีรายได้ทั้งปีไม่เกิน 30,000','เบี้ยประกันผู้สูงอายุค่อนข้างแพง','บางโรคประจำตัวอาจซื้อไม่ได้']},
+  {k:'donEdu', emoji:'🏫', name:'บริจาคการศึกษา / รพ.รัฐ',
+   what:'บริจาคให้โรงเรียน มหาวิทยาลัย หรือโรงพยาบาลรัฐผ่านระบบ e-Donation',
+   pros:['ลดหย่อนได้ 2 เท่าของเงินที่บริจาค','ได้ช่วยสังคมไปพร้อมกัน','บริจาคเท่าไหร่ก็ได้ ไม่ผูกพันระยะยาว'],
+   cons:['ใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน','ต้องบริจาคผ่าน e-Donation ให้มีหลักฐาน','เงินบริจาคไม่ได้คืน (ต่างจากการลงทุน)']}
+];
+
+function helperRemaining(c){
+  const u = c.used, inc = c.income;
+  const groupRem = Math.max(0, TAX.retireGroupCap - (u.pension + u.rmf + u.pvd));
+  const lifeHealthRem = Math.max(0, TAX.lifeHealthCap - (u.life + u.health));
+  const donRem = Math.max(0, c.donBase * TAX.donationRate - u.donEdu - u.donGen);
+  return {
+    rmf: Math.min(Math.max(0, Math.min(inc * TAX.rmfRate, TAX.rmfCap) - u.rmf), groupRem),
+    esg: Math.max(0, Math.min(inc * TAX.esgRate, TAX.esgCap) - u.esg),
+    life: Math.min(Math.max(0, TAX.lifeInsCap - u.life), lifeHealthRem),
+    health: Math.min(Math.max(0, TAX.healthInsCap - u.health), lifeHealthRem),
+    pension: Math.min(Math.max(0, Math.min(inc * TAX.pensionRate, TAX.pensionCap) - u.pension), groupRem),
+    parentHealth: Math.max(0, TAX.parentHealthCap - u.parentHealth),
+    donEdu: Math.floor(donRem / 2)     // เงินที่ควักจริง (ลดหย่อนนับ 2 เท่า)
+  };
+}
+
+let simState = {k:null, amt:0};
 function renderReduce(){
-  $('#content').innerHTML = '<div class="card"><div class="empty"><span class="big">🚧</span>กำลังสร้างในขั้นถัดไป (TASK 6)</div></div>';
+  if(!db.taxProfile){
+    $('#content').innerHTML = `<div class="card" style="text-align:center;padding:30px 20px">
+      <div style="font-size:44px">💡</div>
+      <h3 style="font-size:19px;margin:10px 0 6px">อยากรู้วิธีลดภาษี ต้องรู้ภาษีก่อน</h3>
+      <div class="label">ประเมินภาษีปีนี้ก่อน (2 นาที) แล้วเราจะบอกได้ว่าตัวช่วยไหนคุ้มกับคุณที่สุด</div>
+      <button class="btn btn-main btn-block" style="margin-top:16px" onclick="go('tax')">ไปประเมินภาษีก่อน →</button>
+    </div>`;
+    return;
+  }
+  const c = calcTax(db.taxProfile);
+  if(c.tax === 0){
+    $('#content').innerHTML = `<div class="card" style="text-align:center;padding:30px 20px">
+      <div style="font-size:44px">🎉</div>
+      <h3 style="font-size:19px;margin:10px 0 6px">ปีนี้คุณไม่ต้องเสียภาษีอยู่แล้ว</h3>
+      <div class="label" style="max-width:420px;margin:0 auto">ไม่จำเป็นต้องซื้ออะไรเพิ่มเพื่อลดภาษี —
+      ถ้าอยากเริ่มออมหรือลงทุน RMF / Thai ESG ก็ยังทำได้เพื่ออนาคต แต่จะไม่ช่วยประหยัดภาษีของปีนี้</div>
+      <button class="btn btn-ghost btn-block" style="margin-top:16px" onclick="go('tax')">ดูผลภาษีของฉัน</button>
+    </div>`;
+    return;
+  }
+  const rem = helperRemaining(c);
+  const rate = marginalRate(c.net);
+  // เรียงการ์ดตามเงินภาษีที่ประหยัดได้จริงมากสุด
+  const cards = HELPERS.map(h => {
+    const r = Math.floor(rem[h.k] || 0);
+    const factor = h.k === 'donEdu' ? 2 : 1;
+    return {...h, rem: r, maxSave: r > 0 ? savingIfAdd(c, r * factor) : 0, factor};
+  }).sort((a, b) => b.maxSave - a.maxSave);
+  const simmable = cards.filter(x => x.rem > 0);
+  if(!simState.k || !simmable.find(x => x.k === simState.k)){
+    simState = {k: simmable[0] ? simmable[0].k : null, amt: 0};
+  }
+  $('#content').innerHTML = `
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div><div class="label">ตอนนี้คาดว่าต้องเสียภาษี</div>
+        <div class="money" style="font-size:24px">${baht(c.tax)}</div></div>
+      <div style="text-align:right"><div class="label">ฐานภาษีสูงสุดของคุณ</div>
+        <span class="chip info" style="font-size:14px">${Math.round(rate * 100)}%</span>
+        <div class="label" style="margin-top:3px">ลดหย่อนเพิ่มทุก 100 บาท<br>ประหยัดราว ${Math.round(rate * 100)} บาท</div></div>
+    </div>
+    ${simState.k ? `
+    <div class="card" style="border:1.5px solid var(--accent)">
+      <h3>🧪 ลองเลื่อนดู: ถ้าลงทุนเพิ่ม จะประหยัดเท่าไหร่?</h3>
+      <select style="margin:6px 0 10px" onchange="simState.k=this.value;simState.amt=0;renderReduce()">
+        ${simmable.map(x => `<option value="${x.k}" ${x.k === simState.k ? 'selected' : ''}>${x.emoji} ${x.name} (เหลือโควตา ${fmt(x.rem)})</option>`).join('')}
+      </select>
+      <input type="range" id="simRange" min="0" max="${simmable.find(x => x.k === simState.k).rem}" step="${simmable.find(x => x.k === simState.k).rem > 20000 ? 1000 : 100}" value="${simState.amt}" oninput="simState.amt=+this.value;updateSim()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <div><div class="label">ถ้าลงทุนเพิ่ม</div><div class="money" id="simAmt" style="font-size:19px">฿0</div></div>
+        <div style="font-size:22px;color:var(--ink2)">→</div>
+        <div style="text-align:right"><div class="label">ภาษีจะเหลือ</div><div class="money" id="simTax" style="font-size:19px">${baht(c.tax)}</div>
+          <div class="label" id="simSave" style="color:var(--good);font-weight:600"></div></div>
+      </div>
+    </div>` : ''}
+    <h3 style="margin:16px 2px 10px;font-size:16px">ตัวช่วยลดภาษีของคุณ เรียงตามความคุ้ม</h3>
+    ${cards.map(h => h.rem > 0 ? `
+      <div class="card helper-card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <h3 style="margin:0">${h.emoji} ${h.name}</h3>
+          <span class="chip good">ประหยัดได้ถึง ~${fmt(h.maxSave)}</span>
+        </div>
+        <div class="label" style="margin:6px 0 8px">${h.what}</div>
+        <div class="calc-line"><span>ซื้อเพิ่มได้อีก${h.k === 'donEdu' ? ' (เงินบริจาคจริง)' : ''}</span><b>${baht(h.rem)}</b></div>
+        <div class="row2" style="margin-top:10px;align-items:start">
+          <div><div class="label" style="font-weight:600;color:var(--good);margin-bottom:2px">ข้อดี</div><ul class="pros">${h.pros.map(x => '<li>' + x + '</li>').join('')}</ul></div>
+          <div><div class="label" style="font-weight:600;color:var(--warn);margin-bottom:2px">ข้อควรระวัง</div><ul class="cons">${h.cons.map(x => '<li>' + x + '</li>').join('')}</ul></div>
+        </div>
+      </div>` : `
+      <div class="card" style="opacity:.65">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3 style="margin:0">${h.emoji} ${h.name}</h3><span class="chip info">ใช้เต็มโควตาแล้ว ✓</span>
+        </div>
+      </div>`).join('')}
+    <div class="hint" style="margin-top:4px">💬 ตัวเลข "ประหยัดได้" คิดจากอัตราภาษีของคุณตอนนี้ เป็นการประมาณการ ·
+    ข้อมูลนี้ช่วยให้เข้าใจตัวเลือก <b>ไม่ใช่คำแนะนำการลงทุนอย่างเป็นทางการ</b> —
+    ก่อนซื้อจริงศึกษาเงื่อนไขของแต่ละผลิตภัณฑ์ และเลือกผู้ให้บริการที่ได้รับอนุญาตจาก ก.ล.ต. / คปภ.</div>`;
+}
+function updateSim(){
+  const c = calcTax(db.taxProfile);
+  const h = HELPERS.find(x => x.k === simState.k);
+  const factor = h && h.k === 'donEdu' ? 2 : 1;
+  const saveAmt = savingIfAdd(c, simState.amt * factor);
+  document.getElementById('simAmt').textContent = baht(simState.amt);
+  document.getElementById('simTax').textContent = baht(Math.max(0, c.tax - saveAmt));
+  document.getElementById('simSave').textContent = saveAmt > 0 ? 'ประหยัด ' + fmt(saveAmt) + ' บาท' : '';
 }
 /* ===== END TAX MODULE ===== */
 
