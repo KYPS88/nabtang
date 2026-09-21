@@ -37,7 +37,7 @@
 2. กด **New Project** → **Deploy from GitHub repo** → เลือก `KYPS88/nabtang`
    (ครั้งแรก Railway จะขอสิทธิ์เข้าถึง GitHub — อนุญาตเฉพาะ repo นี้ก็ได้)
 3. รอ build เสร็จ (~1 นาที) → เข้าแท็บ **Settings → Networking** → กด **Generate Domain**
-4. จะได้ลิงก์เว็บ เช่น `https://nabtang-production.up.railway.app`
+4. จะได้ลิงก์เว็บ `https://nabtang-production.up.railway.app` ✅ (โดเมนจริงของแอพนี้)
    ทดสอบเปิด `https://<โดเมนที่ได้>/app.html` ต้องเห็นแอพ → ใช้ลิงก์นี้เป็น **ลิงก์แอพ**
    (เอาไปใส่เป็น Endpoint URL ของ LIFF ในขั้นที่ 3 แทนลิงก์ GitHub Pages ได้เลย)
 
