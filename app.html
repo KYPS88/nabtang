@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MoneyLine — ผู้ช่วยการเงินและภาษีในไลน์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Bai+Jamjuree:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f9fafc; --card:#ffffff; --ink:#1a2032; --ink2:#5c6478;
+  --accent:#2563eb; --accent-soft:#eef2ff; --good:#16a34a; --good-soft:#e8f7ee;
+  --warn:#d97706; --warn-soft:#fff8ec; --bad:#dc2626; --bad-soft:#fdeaea;
+  --line:#eceef4; --radius:14px; --shadow:0 4px 18px rgba(26,32,50,.07);
+  --sidebar:230px; --topbar:60px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Anuphan',sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+h1,h2,h3,h4,.num{font-family:'Bai Jamjuree',sans-serif}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+.num{font-variant-numeric:tabular-nums}
+
+/* ===== layout ===== */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar);background:#fff;border-right:1px solid var(--line);padding:18px 12px;z-index:60;display:flex;flex-direction:column;transition:transform .25s}
+.brand{display:flex;align-items:center;gap:9px;font-family:'Bai Jamjuree';font-weight:700;font-size:19px;padding:6px 10px 18px}
+.brand .dot{background:var(--good);border-radius:10px;width:32px;height:32px;display:grid;place-items:center;font-size:16px}
+.nav-btn{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 12px;border-radius:11px;font-size:15.5px;font-weight:500;color:var(--ink2);margin-bottom:3px}
+.nav-btn .ic{font-size:19px;width:24px;text-align:center}
+.nav-btn:hover{background:var(--bg)}
+.nav-btn.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.side-foot{margin-top:auto;font-size:11.5px;color:var(--ink2);padding:10px 12px;border-top:1px solid var(--line)}
+.topbar{position:fixed;top:0;left:var(--sidebar);right:0;height:var(--topbar);background:rgba(255,255,255,.93);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 20px;z-index:50}
+.topbar h1{font-size:18px;font-weight:600;flex:1}
+.burger{display:none;font-size:21px;padding:6px 10px;border-radius:9px}
+.burger:hover{background:var(--bg)}
+.gear{font-size:19px;padding:6px 10px;border-radius:9px}
+.gear:hover{background:var(--bg)}
+.overlay{position:fixed;inset:0;background:rgba(26,32,50,.4);z-index:55;display:none}
+.overlay.show{display:block}
+main{margin-left:var(--sidebar);padding:calc(var(--topbar) + 20px) 20px 90px;max-width:760px}
+@media(max-width:820px){
+  .sidebar{transform:translateX(-105%)}
+  .sidebar.open{transform:translateX(0);box-shadow:0 0 40px rgba(26,32,50,.25)}
+  .topbar{left:0}
+  .burger{display:block}
+  main{margin-left:0;padding-left:14px;padding-right:14px}
+}
+
+/* ===== components ===== */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+.card h3{font-size:16px;margin-bottom:10px}
+.label{font-size:12.5px;color:var(--ink2)}
+.money{font-family:'Bai Jamjuree';font-weight:700;font-variant-numeric:tabular-nums}
+.g{color:var(--good)} .r{color:var(--bad)} .w{color:var(--warn)}
+.chip{display:inline-block;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600}
+.chip.good{background:var(--good-soft);color:#15803d}
+.chip.warn{background:var(--warn-soft);color:#8a5a08}
+.chip.bad{background:var(--bad-soft);color:#b91c1c}
+.chip.info{background:var(--accent-soft);color:#3547a8}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:999px;padding:12px 22px;font-weight:600;font-size:15.5px;transition:.15s}
+.btn-main{background:var(--ink);color:#fff}
+.btn-main:hover{background:var(--accent)}
+.btn-main:disabled{opacity:.4;cursor:not-allowed}
+.btn-ghost{border:1.5px solid #d8dce8;background:#fff;color:var(--ink)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-block{width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+select,input[type=date],input[type=text],input[type=number]{width:100%;padding:11px 13px;border:1.5px solid #d8dce8;border-radius:11px;background:#fff;color:var(--ink)}
+select:focus,input:focus{outline:none;border-color:var(--accent)}
+.seg{display:flex;background:#eef0f6;border-radius:999px;padding:4px;gap:4px}
+.seg button{flex:1;border-radius:999px;padding:10px;font-weight:600;font-size:15px;color:var(--ink2)}
+.seg button.on-out{background:var(--bad);color:#fff}
+.seg button.on-in{background:var(--good);color:#fff}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;border-radius:999px;padding:11px 24px;font-weight:600;font-size:14.5px;opacity:0;transition:.3s;z-index:100;white-space:nowrap;box-shadow:var(--shadow)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.empty{text-align:center;color:var(--ink2);padding:34px 10px;font-size:14.5px}
+.empty .big{font-size:38px;display:block;margin-bottom:10px}
+
+/* จดเงิน */
+.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}
+.cat-btn{border:1.5px solid var(--line);border-radius:12px;padding:11px 4px;text-align:center;background:#fff;font-size:13px;color:var(--ink2)}
+.cat-btn .em{display:block;font-size:23px;margin-bottom:3px}
+.cat-btn.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.amt-display{font-family:'Bai Jamjuree';font-weight:700;font-size:40px;text-align:center;padding:8px 0 2px;min-height:64px}
+.amt-display .cur{font-size:22px;color:var(--ink2);margin-right:4px}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.keypad button{background:var(--bg);border-radius:12px;padding:15px 0;font-family:'Bai Jamjuree';font-size:22px;font-weight:600}
+.keypad button:active{background:var(--accent-soft)}
+
+/* รายการ */
+.day-head{display:flex;justify-content:space-between;align-items:baseline;margin:18px 2px 8px;font-size:13.5px;color:var(--ink2)}
+.day-head b{color:var(--ink);font-size:14.5px}
+.tx{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.tx .em{font-size:22px;background:var(--bg);border-radius:10px;width:42px;height:42px;display:grid;place-items:center;flex-shrink:0}
+.tx .mid{flex:1;min-width:0}
+.tx .mid .nm{font-weight:600;font-size:14.5px}
+.tx .mid .nt{font-size:12.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx .amt{font-family:'Bai Jamjuree';font-weight:700;font-size:16px;text-align:right}
+.tx .ops{display:flex;gap:2px}
+.tx .ops button{font-size:15px;padding:6px;border-radius:8px;opacity:.55}
+.tx .ops button:hover{background:var(--bg);opacity:1}
+
+/* สรุปยอด */
+.stat3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.stat3 .card{margin:0;padding:13px 14px}
+.stat3 .money{font-size:17px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:110px;margin-top:12px}
+.bars .b{flex:1;background:#cdd8f8;border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.bars .b.max{background:var(--accent)}
+.bars .b.today{outline:2px solid var(--ink);outline-offset:1px}
+.bar-x{display:flex;gap:2px;margin-top:5px;font-size:10.5px;color:var(--ink2)}
+.bar-x span{flex:1;text-align:center}
+.meter{height:10px;border-radius:99px;background:#eef0f6;overflow:hidden;margin:5px 0 12px}
+.meter i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.cat-row{display:flex;justify-content:space-between;font-size:13.5px}
+.cat-row b{font-family:'Bai Jamjuree'}
+
+/* ภาษี wizard */
+.wiz-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.wiz-step{font-size:12.5px;color:var(--ink2);font-weight:600}
+.opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:9px;background:#fff;font-size:15px}
+.opt small{display:block;color:var(--ink2);font-size:12.5px;margin-top:1px}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.sel,.opt.sel small{color:var(--accent)}
+.warn-txt{display:block;font-size:12.5px;color:var(--warn);margin-top:4px}
+.calc-line{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.calc-line:last-child{border:none}
+.calc-line b{font-family:'Bai Jamjuree';font-variant-numeric:tabular-nums;white-space:nowrap}
+.calc-line .sub{color:var(--ink2);font-size:12.5px}
+.step-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-family:'Bai Jamjuree';font-weight:700;font-size:12px;margin-right:7px;flex-shrink:0}
+.helper-card .pros li{padding:3px 0 3px 24px;position:relative;font-size:13.5px;color:var(--ink2);list-style:none}
+.helper-card .pros li::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:700}
+.helper-card .cons li{padding:3px 0 3px 24px;position:relative;font-size:13.5px;color:var(--ink2);list-style:none}
+.helper-card .cons li::before{content:"!";position:absolute;left:3px;color:var(--warn);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--accent);height:34px}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(26,32,50,.45);z-index:90;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:22px 20px 28px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto}
+@media(min-width:821px){.modal-bg.show{align-items:center}.modal{border-radius:20px}}
+.modal h3{font-size:17px;margin-bottom:14px}
+.field{margin-bottom:14px}
+.field .label{display:block;margin-bottom:5px}
+.hint{font-size:12.5px;color:var(--ink2);background:var(--bg);border-radius:10px;padding:9px 12px;margin-top:6px}
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><span class="dot">💚</span>MoneyLine</div>
+  <button class="nav-btn" data-view="home"><span class="ic">🏠</span>หน้าแรก</button>
+  <button class="nav-btn" data-view="add"><span class="ic">✏️</span>จดเงิน</button>
+  <button class="nav-btn" data-view="list"><span class="ic">📒</span>รายการ</button>
+  <button class="nav-btn" data-view="summary"><span class="ic">📊</span>สรุปยอด</button>
+  <button class="nav-btn" data-view="tax"><span class="ic">🧮</span>ภาษีของฉัน</button>
+  <button class="nav-btn" data-view="reduce"><span class="ic">💡</span>ลดภาษี</button>
+  <div class="side-foot">ผลภาษีเป็นการประมาณการเบื้องต้น<br>อ้างอิงเกณฑ์ปีภาษี 2568</div>
+</aside>
+<div class="overlay" id="overlay"></div>
+
+<div class="topbar">
+  <button class="burger" id="burger">☰</button>
+  <h1 id="pageTitle">หน้าแรก</h1>
+  <button class="gear" id="gearBtn" title="ตั้งค่า">⚙️</button>
+</div>
+
+<main id="content"></main>
+
+<div class="toast" id="toast"></div>
+
+<!-- modal ตั้งค่า -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3>⚙️ ตั้งค่า</h3>
+    <div class="field"><label class="label">ชื่อเล่นของคุณ (ไว้ทักทาย)</label>
+      <input type="text" id="setName" placeholder="เช่น ต้น"></div>
+    <div class="field"><label class="label">LIFF ID (สำหรับเปิดในไลน์ — เว้นว่างได้)</label>
+      <input type="text" id="setLiff" placeholder="เช่น 1234567890-AbcdEfgh">
+      <span class="warn-txt" style="color:var(--ink2)">ดูวิธีขอ LIFF ID ได้ในไฟล์ SETUP.md</span></div>
+    <div class="row2">
+      <button class="btn btn-ghost" onclick="closeModal('settingsModal')">ปิด</button>
+      <button class="btn btn-main" onclick="saveSettings()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal เพิ่มหมวด -->
+<div class="modal-bg" id="catModal">
+  <div class="modal">
+    <h3>เพิ่มหมวดหมู่ใหม่</h3>
+    <div class="field"><label class="label">ไอคอน (อิโมจิ 1 ตัว)</label>
+      <input type="text" id="newCatEmoji" placeholder="เช่น 🐶" maxlength="4"></div>
+    <div class="field"><label class="label">ชื่อหมวด</label>
+      <input type="text" id="newCatName" placeholder="เช่น สัตว์เลี้ยง" maxlength="20"></div>
+    <div class="row2">
+      <button class="btn btn-ghost" onclick="closeModal('catModal')">ยกเลิก</button>
+      <button class="btn btn-main" onclick="addCategory()">เพิ่มหมวด</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= ข้อมูล & storage ================= */
+const STORE_KEY = 'moneyline_app';
+
+function defaultDb(){
+  return {
+    transactions: [],
+    categories: {
+      out: [
+        {id:'food',   emoji:'🍜', name:'อาหาร'},
+        {id:'travel', emoji:'🚗', name:'เดินทาง'},
+        {id:'home',   emoji:'🏠', name:'ที่อยู่/บิล'},
+        {id:'shop',   emoji:'🛍️', name:'ช้อปปิ้ง'},
+        {id:'fun',    emoji:'🎬', name:'บันเทิง'},
+        {id:'health', emoji:'💊', name:'สุขภาพ'},
+        {id:'edu',    emoji:'📚', name:'การศึกษา'},
+        {id:'family', emoji:'💝', name:'ให้ครอบครัว'},
+        {id:'other',  emoji:'📦', name:'อื่น ๆ'}
+      ],
+      in: [
+        {id:'salary', emoji:'💰', name:'เงินเดือน'},
+        {id:'bonus',  emoji:'🎁', name:'โบนัส'},
+        {id:'inOther',emoji:'📦', name:'รายได้อื่น'}
+      ]
+    },
+    taxProfile: null,
+    settings: {name:'', liffId:''}
+  };
+}
+
+let db;
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const d = JSON.parse(raw);
+      const base = defaultDb();
+      db = Object.assign(base, d);
+      db.settings = Object.assign(base.settings === d.settings ? {} : {name:'',liffId:''}, d.settings || {});
+      return;
+    }
+  }catch(e){ console.warn('โหลดข้อมูลไม่ได้', e); }
+  db = defaultDb();
+}
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
+  catch(e){ toast('⚠️ บันทึกข้อมูลลงเครื่องไม่ได้'); }
+}
+load();
+
+/* ================= helper ================= */
+const $ = s => document.querySelector(s);
+const MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const MONTHS_S = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function fmt(n){
+  const v = Math.round((+n + Number.EPSILON) * 100) / 100;
+  return v.toLocaleString('en-US', {maximumFractionDigits:2});
+}
+function baht(n){ return '฿' + fmt(n); }
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function monthKey(dateStr){ return dateStr.slice(0,7); }               // "2026-09"
+function thDate(dateStr){                                              // "21 ก.ย. 69"
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return d + ' ' + MONTHS_S[m-1] + ' ' + String(y+543).slice(-2);
+}
+function thMonth(mk){                                                  // "กันยายน 2569"
+  const [y,m] = mk.split('-').map(Number);
+  return MONTHS[m-1] + ' ' + (y+543);
+}
+function catOf(tx){
+  const list = db.categories[tx.type === 'in' ? 'in' : 'out'];
+  return list.find(c => c.id === tx.cat) || {emoji:'❓', name:'ไม่ระบุ'};
+}
+function txOfMonth(mk){ return db.transactions.filter(t => monthKey(t.date) === mk); }
+function sumBy(list, type){ return list.filter(t => t.type === type).reduce((s,t) => s + t.amount, 0); }
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ================= navigation ================= */
+const TITLES = {home:'หน้าแรก', add:'จดเงิน', list:'รายการ', summary:'สรุปยอด', tax:'ภาษีของฉัน', reduce:'ลดภาษี'};
+let view = 'home';
+function go(v){
+  view = v;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  $('#pageTitle').textContent = TITLES[v];
+  $('#sidebar').classList.remove('open');
+  $('#overlay').classList.remove('show');
+  window.scrollTo(0,0);
+  ({home:renderHome, add:renderAdd, list:renderList, summary:renderSummary, tax:renderTax, reduce:renderReduce})[v]();
+}
+document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => go(b.dataset.view)));
+$('#burger').addEventListener('click', () => { $('#sidebar').classList.add('open'); $('#overlay').classList.add('show'); });
+$('#overlay').addEventListener('click', () => { $('#sidebar').classList.remove('open'); $('#overlay').classList.remove('show'); });
+$('#gearBtn').addEventListener('click', () => {
+  $('#setName').value = db.settings.name || '';
+  $('#setLiff').value = db.settings.liffId || '';
+  openModal('settingsModal');
+});
+function saveSettings(){
+  db.settings.name = $('#setName').value.trim();
+  const newLiff = $('#setLiff').value.trim();
+  const changed = newLiff !== (db.settings.liffId || '');
+  db.settings.liffId = newLiff;
+  save(); closeModal('settingsModal'); toast('บันทึกแล้ว ✓');
+  if(changed && newLiff) initLiff();
+  if(view === 'home') renderHome();
+}
+
+/* ================= หน้าแรก ================= */
+function renderHome(){
+  const today = todayStr(), mk = monthKey(today);
+  const dayTx = db.transactions.filter(t => t.date === today);
+  const monTx = txOfMonth(mk);
+  const dIn = sumBy(dayTx,'in'), dOut = sumBy(dayTx,'out');
+  const mIn = sumBy(monTx,'in'), mOut = sumBy(monTx,'out');
+  const recent = [...db.transactions].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0,3);
+  const name = db.settings.name;
+  $('#content').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:19px;font-weight:600">สวัสดี${name ? 'คุณ' + esc(name) : ''} 👋</div>
+      <div class="label">${thDate(today)} · ${thMonth(mk)}</div>
+    </div>
+    <div class="row2">
+      <div class="card" style="margin-bottom:12px">
+        <div class="label">วันนี้</div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div><div class="label">รับ</div><div class="money g">${baht(dIn)}</div></div>
+          <div style="text-align:right"><div class="label">จ่าย</div><div class="money r">${baht(dOut)}</div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="label">เดือนนี้ · เหลือ</div>
+        <div class="money" style="font-size:22px;margin-top:2px;color:${mIn-mOut >= 0 ? 'var(--good)' : 'var(--bad)'}">${baht(mIn-mOut)}</div>
+        <div class="label" style="margin-top:2px">รับ ${fmt(mIn)} · จ่าย ${fmt(mOut)}</div>
+      </div>
+    </div>
+    <button class="btn btn-main btn-block" style="padding:15px;font-size:17px;margin-bottom:14px" onclick="go('add')">＋ จดเงิน</button>
+    ${taxSummaryCard()}
+    <div class="card">
+      <h3>รายการล่าสุด</h3>
+      ${recent.length ? recent.map(txRow).join('') :
+        '<div class="empty"><span class="big">🌱</span>ยังไม่มีรายการ — เริ่มจดรายการแรกกันเลย</div>'}
+      ${recent.length ? '<button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="go(\'list\')">ดูทั้งหมด</button>' : ''}
+    </div>`;
+}
+
+/* ================= จดเงิน ================= */
+let addState = {type:'out', cat:null, amount:'', date:todayStr(), note:'', editId:null};
+function resetAdd(keepType){
+  addState = {type: keepType ? addState.type : 'out', cat:null, amount:'', date:todayStr(), note:'', editId:null};
+}
+function renderAdd(){
+  const s = addState;
+  const cats = db.categories[s.type];
+  $('#content').innerHTML = `
+    ${s.editId ? '<div class="chip info" style="margin-bottom:10px">✏️ กำลังแก้ไขรายการ</div>' : ''}
+    <div class="seg" style="margin-bottom:14px">
+      <button class="${s.type==='out' ? 'on-out' : ''}" onclick="setAddType('out')">💸 รายจ่าย</button>
+      <button class="${s.type==='in' ? 'on-in' : ''}" onclick="setAddType('in')">💰 รายรับ</button>
+    </div>
+    <div class="card">
+      <div class="label">แตะเลือกหมวด</div>
+      <div class="cat-grid">
+        ${cats.map(c => `<button class="cat-btn ${s.cat===c.id ? 'sel' : ''}" onclick="setAddCat('${c.id}')"><span class="em">${c.emoji}</span>${esc(c.name)}</button>`).join('')}
+        <button class="cat-btn" style="border-style:dashed" onclick="openModal('catModal')"><span class="em">➕</span>เพิ่มหมวด</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="amt-display" style="color:${s.type==='out' ? 'var(--bad)' : 'var(--good)'}">
+        <span class="cur">฿</span>${s.amount ? fmtAmtStr(s.amount) : '<span style="color:#c3c8d6">0</span>'}
+      </div>
+      <div class="keypad">
+        ${[1,2,3,4,5,6,7,8,9].map(n => `<button onclick="key('${n}')">${n}</button>`).join('')}
+        <button onclick="key('.')">·</button>
+        <button onclick="key('0')">0</button>
+        <button onclick="key('del')">⌫</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row2">
+        <div class="field" style="margin:0"><label class="label">วันที่</label>
+          <input type="date" id="addDate" value="${s.date}" max="${todayStr()}" onchange="addState.date=this.value"></div>
+        <div class="field" style="margin:0"><label class="label">โน้ต (ไม่บังคับ)</label>
+          <input type="text" id="addNote" value="${esc(s.note)}" placeholder="เช่น ข้าวมันไก่" maxlength="60" oninput="addState.note=this.value"></div>
+      </div>
+    </div>
+    <div class="row2">
+      ${s.editId ? '<button class="btn btn-ghost" onclick="cancelEdit()">ยกเลิก</button>' : '<button class="btn btn-ghost" onclick="resetAdd(true);renderAdd()">ล้าง</button>'}
+      <button class="btn btn-main" onclick="saveTx()">${s.editId ? 'บันทึกการแก้ไข' : 'บันทึก ✓'}</button>
+    </div>`;
+}
+function fmtAmtStr(a){
+  const [i, dec] = a.split('.');
+  const fi = (+i || 0).toLocaleString('en-US');
+  return dec !== undefined ? fi + '.' + dec : fi;
+}
+function setAddType(t){ if(addState.type !== t){ addState.type = t; addState.cat = null; } renderAdd(); }
+function setAddCat(id){ addState.cat = id; renderAdd(); }
+function key(k){
+  let a = addState.amount;
+  if(k === 'del') a = a.slice(0,-1);
+  else if(k === '.'){ if(!a.includes('.')) a = (a || '0') + '.'; }
+  else{
+    if(a.includes('.')){ if(a.split('.')[1].length >= 2) return; }
+    else if(a.replace('.','').length >= 9) return;
+    a = (a === '0' ? '' : a) + k;
+  }
+  addState.amount = a;
+  renderAdd();
+}
+function saveTx(){
+  const s = addState;
+  const amt = parseFloat(s.amount);
+  if(!s.cat){ toast('แตะเลือกหมวดก่อนนะ'); return; }
+  if(!amt || amt <= 0){ toast('ใส่จำนวนเงินก่อนนะ'); return; }
+  if(!s.date){ toast('เลือกวันที่ก่อนนะ'); return; }
+  if(s.editId){
+    const tx = db.transactions.find(t => t.id === s.editId);
+    if(tx) Object.assign(tx, {type:s.type, cat:s.cat, amount:amt, date:s.date, note:s.note.trim()});
+    save(); resetAdd(); toast('แก้ไขแล้ว ✓'); go('list');
+  }else{
+    db.transactions.push({id:Date.now(), type:s.type, cat:s.cat, amount:amt, date:s.date, note:s.note.trim()});
+    save();
+    const keep = s.type; resetAdd(); addState.type = keep;
+    toast('จดแล้ว ✓ ' + baht(amt));
+    renderAdd();
+  }
+}
+function editTx(id){
+  const tx = db.transactions.find(t => t.id === id);
+  if(!tx) return;
+  addState = {type:tx.type, cat:tx.cat, amount:String(tx.amount), date:tx.date, note:tx.note || '', editId:id};
+  go('add');
+}
+function cancelEdit(){ resetAdd(); go('list'); }
+function delTx(id){
+  if(!confirm('ลบรายการนี้ใช่ไหม?')) return;
+  db.transactions = db.transactions.filter(t => t.id !== id);
+  save(); toast('ลบแล้ว');
+  renderList();
+}
+function addCategory(){
+  const emoji = $('#newCatEmoji').value.trim() || '🔖';
+  const name = $('#newCatName').value.trim();
+  if(!name){ toast('ตั้งชื่อหมวดก่อนนะ'); return; }
+  const id = 'c' + Date.now();
+  db.categories[addState.type].push({id, emoji, name});
+  save();
+  $('#newCatEmoji').value = ''; $('#newCatName').value = '';
+  closeModal('catModal');
+  addState.cat = id;
+  toast('เพิ่มหมวด "' + name + '" แล้ว ✓');
+  if(view === 'add') renderAdd();
+}
+
+/* ================= รายการ ================= */
+let listFilter = {month:'all', cat:'all'};
+function monthOptions(){
+  const set = new Set(db.transactions.map(t => monthKey(t.date)));
+  set.add(monthKey(todayStr()));
+  return [...set].sort().reverse();
+}
+function txRow(t){
+  const c = catOf(t);
+  return `<div class="tx">
+    <div class="em">${c.emoji}</div>
+    <div class="mid">
+      <div class="nm">${esc(c.name)}</div>
+      <div class="nt">${thDate(t.date)}${t.note ? ' · ' + esc(t.note) : ''}</div>
+    </div>
+    <div class="amt ${t.type==='in' ? 'g' : 'r'}">${t.type==='in' ? '+' : '−'}${fmt(t.amount)}</div>
+    <div class="ops">
+      <button title="แก้ไข" onclick="editTx(${t.id})">✏️</button>
+      <button title="ลบ" onclick="delTx(${t.id})">🗑️</button>
+    </div>
+  </div>`;
+}
+function renderList(){
+  const f = listFilter;
+  let txs = [...db.transactions];
+  if(f.month !== 'all') txs = txs.filter(t => monthKey(t.date) === f.month);
+  if(f.cat !== 'all') txs = txs.filter(t => t.cat === f.cat);
+  txs.sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+  const allCats = [...db.categories.out, ...db.categories.in];
+  // จัดกลุ่มรายวัน
+  const groups = {};
+  txs.forEach(t => (groups[t.date] = groups[t.date] || []).push(t));
+  const dates = Object.keys(groups).sort().reverse();
+  $('#content').innerHTML = `
+    <div class="row2" style="margin-bottom:12px">
+      <select onchange="listFilter.month=this.value;renderList()">
+        <option value="all" ${f.month==='all'?'selected':''}>ทุกเดือน</option>
+        ${monthOptions().map(mk => `<option value="${mk}" ${f.month===mk?'selected':''}>${thMonth(mk)}</option>`).join('')}
+      </select>
+      <select onchange="listFilter.cat=this.value;renderList()">
+        <option value="all" ${f.cat==='all'?'selected':''}>ทุกหมวด</option>
+        ${allCats.map(c => `<option value="${c.id}" ${f.cat===c.id?'selected':''}>${c.emoji} ${esc(c.name)}</option>`).join('')}
+      </select>
+    </div>
+    ${txs.length ? `
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+        <div><div class="label">ช่วงที่เลือก · ${txs.length} รายการ</div>
+          <div style="font-size:14px;margin-top:2px"><span class="money g">+${fmt(sumBy(txs,'in'))}</span> · <span class="money r">−${fmt(sumBy(txs,'out'))}</span></div></div>
+        <button class="btn btn-ghost" style="padding:9px 16px;font-size:13.5px" onclick="exportCSV()">📄 ออกรายงาน CSV</button>
+      </div>
+      ${dates.map(d => {
+        const g = groups[d], gi = sumBy(g,'in'), go_ = sumBy(g,'out');
+        return `<div class="day-head"><b>${d === todayStr() ? 'วันนี้ · ' : ''}${thDate(d)}</b>
+          <span>${gi ? '+' + fmt(gi) + ' ' : ''}${go_ ? '−' + fmt(go_) : ''}</span></div>` + g.map(txRow).join('');
+      }).join('')}`
+    : '<div class="card"><div class="empty"><span class="big">📭</span>ไม่มีรายการในช่วงที่เลือก</div></div>'}`;
+}
+function exportCSV(){
+  const f = listFilter;
+  let txs = [...db.transactions];
+  if(f.month !== 'all') txs = txs.filter(t => monthKey(t.date) === f.month);
+  if(f.cat !== 'all') txs = txs.filter(t => t.cat === f.cat);
+  txs.sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+  const rows = [['วันที่','ประเภท','หมวดหมู่','จำนวนเงิน','โน้ต']];
+  txs.forEach(t => rows.push([t.date, t.type==='in' ? 'รายรับ' : 'รายจ่าย', catOf(t).name, t.amount, t.note || '']));
+  const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  a.download = 'moneyline_' + (f.month === 'all' ? 'all' : f.month) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('ออกไฟล์ CSV แล้ว ✓');
+}
+
+/* ================= สรุปยอด ================= */
+let sumMonth = null;
+function renderSummary(){
+  const mks = monthOptions();
+  if(!sumMonth || !mks.includes(sumMonth)) sumMonth = monthKey(todayStr());
+  const mk = sumMonth;
+  const txs = txOfMonth(mk);
+  const mIn = sumBy(txs,'in'), mOut = sumBy(txs,'out');
+  // เดือนก่อน
+  const [y,m] = mk.split('-').map(Number);
+  const prevMk = (m === 1 ? (y-1) + '-12' : y + '-' + String(m-1).padStart(2,'0'));
+  const prevOut = sumBy(txOfMonth(prevMk),'out');
+  // กราฟรายวัน (รายจ่าย)
+  const daysIn = new Date(y, m, 0).getDate();
+  const perDay = Array.from({length:daysIn}, () => 0);
+  txs.filter(t => t.type==='out').forEach(t => perDay[+t.date.slice(8,10) - 1] += t.amount);
+  const maxDay = Math.max(...perDay, 1);
+  const maxIdx = perDay.indexOf(Math.max(...perDay));
+  const today = todayStr();
+  const isThisMonth = monthKey(today) === mk;
+  // สัดส่วนรายจ่ายตามหมวด
+  const byCat = {};
+  txs.filter(t => t.type==='out').forEach(t => byCat[t.cat] = (byCat[t.cat] || 0) + t.amount);
+  const catRows = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
+  // เทียบเดือนก่อน
+  let compareHtml = '';
+  if(prevOut > 0 || mOut > 0){
+    const diff = mOut - prevOut;
+    const pct = prevOut > 0 ? Math.abs(Math.round(diff / prevOut * 100)) : null;
+    compareHtml = `<div class="card">
+      <h3>เทียบกับ${thMonth(prevMk)}</h3>
+      <div class="cat-row"><span>เดือนก่อนจ่าย</span><b class="money">${baht(prevOut)}</b></div>
+      <div class="cat-row" style="margin-top:4px"><span>เดือนนี้จ่าย</span><b class="money">${baht(mOut)}</b></div>
+      <div style="margin-top:10px">${
+        diff === 0 ? '<span class="chip info">เท่ากับเดือนก่อนพอดี</span>' :
+        diff < 0 ? `<span class="chip good">👏 จ่ายน้อยลง ${fmt(-diff)}${pct !== null ? ' (−' + pct + '%)' : ''}</span>` :
+        `<span class="chip bad">จ่ายเพิ่มขึ้น ${fmt(diff)}${pct !== null ? ' (+' + pct + '%)' : ''}</span>`
+      }</div>
+    </div>`;
+  }
+  $('#content').innerHTML = `
+    <select style="margin-bottom:14px" onchange="sumMonth=this.value;renderSummary()">
+      ${mks.map(k => `<option value="${k}" ${k===mk?'selected':''}>${thMonth(k)}</option>`).join('')}
+    </select>
+    <div class="stat3">
+      <div class="card"><div class="label">รายรับ</div><div class="money g">${baht(mIn)}</div></div>
+      <div class="card"><div class="label">รายจ่าย</div><div class="money r">${baht(mOut)}</div></div>
+      <div class="card"><div class="label">คงเหลือ</div><div class="money" style="color:${mIn-mOut>=0?'var(--good)':'var(--bad)'}">${baht(mIn-mOut)}</div></div>
+    </div>
+    ${txs.length ? `
+    <div class="card">
+      <h3>รายจ่ายรายวัน</h3>
+      <div class="label">แท่งสีเข้ม = วันที่จ่ายเยอะสุด${mOut ? ' (' + fmt(perDay[maxIdx]) + ' บาท วันที่ ' + (maxIdx+1) + ')' : ''}</div>
+      <div class="bars">${perDay.map((v,i) =>
+        `<div class="b ${v === maxDay && v > 0 ? 'max' : ''} ${isThisMonth && i+1 === +today.slice(8,10) ? 'today' : ''}" style="height:${Math.max(v/maxDay*100, 2)}%" title="วันที่ ${i+1}: ${fmt(v)}"></div>`).join('')}</div>
+      <div class="bar-x"><span>1</span><span>${Math.round(daysIn/4)}</span><span>${Math.round(daysIn/2)}</span><span>${Math.round(daysIn*3/4)}</span><span>${daysIn}</span></div>
+    </div>
+    <div class="card">
+      <h3>จ่ายหมวดไหนเยอะสุด</h3>
+      ${catRows.length ? catRows.map(([cid, v]) => {
+        const c = db.categories.out.find(x => x.id === cid) || {emoji:'❓', name:'ไม่ระบุ'};
+        const pct = Math.round(v / mOut * 100);
+        return `<div class="cat-row"><span>${c.emoji} ${esc(c.name)}</span><b>${fmt(v)} · ${pct}%</b></div>
+          <div class="meter"><i style="width:${pct}%"></i></div>`;
+      }).join('') : '<div class="empty">เดือนนี้ยังไม่มีรายจ่าย</div>'}
+    </div>
+    ${compareHtml}`
+    : '<div class="card"><div class="empty"><span class="big">📭</span>เดือนนี้ยังไม่มีรายการ — ไปจดเงินกันก่อน</div></div>'}`;
+}
+
+/* ===== TAX MODULE (TASK 5-6) ===== */
+/* ตารางอัตราภาษีและเพดานลดหย่อน — เกณฑ์ปีภาษี 2568 (แก้กฎหมายเปลี่ยนได้ที่จุดเดียวนี้) */
+const TAX = {
+  year: 2568,
+  brackets: [                    // [เพดานสะสมของขั้น, อัตรา]
+    [150000, 0], [300000, .05], [500000, .10], [750000, .15],
+    [1000000, .20], [2000000, .25], [5000000, .30], [Infinity, .35]
+  ],
+  expenseRate: .5, expenseCap: 100000,
+  personal: 60000, spouse: 60000,
+  childBase: 30000, childBoost: 60000,
+  parent: 30000, parentMax: 4,
+  ssoCap: 9000,
+  lifeInsCap: 100000, healthInsCap: 25000, lifeHealthCap: 100000,
+  parentHealthCap: 15000,
+  pensionRate: .15, pensionCap: 200000,
+  rmfRate: .30, rmfCap: 500000,
+  pvdRate: .15, pvdCap: 500000,
+  retireGroupCap: 500000,
+  esgRate: .30, esgCap: 300000,
+  homeLoanCap: 100000,
+  donationRate: .10
+};
+
+function bracketTax(net){
+  let tax = 0, prev = 0;
+  const steps = [];
+  for(const [cap, rate] of TAX.brackets){
+    if(net <= prev) break;
+    const upTo = Math.min(net, cap);
+    const amt = upTo - prev;
+    const t = amt * rate;
+    steps.push({from: prev, to: upTo, rate, tax: t});
+    tax += t;
+    prev = cap;
+  }
+  return {tax: Math.round(tax * 100) / 100, steps};
+}
+
+/* คำนวณภาษีทั้งก้อนจาก taxProfile → คืน breakdown ครบทุกขั้น */
+function calcTax(p){
+  const income = Math.max(0, (+p.salaryMonthly || 0) * 12 + (+p.bonus || 0));
+  const expense = Math.min(income * TAX.expenseRate, TAX.expenseCap);
+  const notes = [];
+  const d = [];                          // [label, amount] เรียงโชว์ผู้ใช้
+  const used = {life:0, health:0, parentHealth:0, pension:0, rmf:0, pvd:0, esg:0, homeLoan:0, donEdu:0, donGen:0};
+
+  d.push(['ลดหย่อนส่วนตัว', TAX.personal]);
+  if(p.marital === 'married_no_income') d.push(['คู่สมรสไม่มีเงินได้', TAX.spouse]);
+  const kids = +p.children || 0;
+  if(kids > 0){
+    const boost = Math.min(+p.childrenBoost || 0, Math.max(kids - 1, 0));
+    d.push(['ลูก ' + kids + ' คน', kids * TAX.childBase + boost * (TAX.childBoost - TAX.childBase)]);
+  }
+  const par = Math.min(+p.parents || 0, TAX.parentMax);
+  if(par > 0) d.push(['เลี้ยงดูพ่อแม่ ' + par + ' คน', par * TAX.parent]);
+  const sso = Math.min(+p.sso || 0, TAX.ssoCap);
+  if((+p.sso || 0) > TAX.ssoCap) notes.push('ประกันสังคมใช้ลดหย่อนได้ไม่เกิน ' + fmt(TAX.ssoCap));
+  if(sso > 0) d.push(['ประกันสังคม', sso]);
+
+  const x = p.ded || {};
+  // ประกันชีวิต + สุขภาพ (รวมกันไม่เกิน 100,000)
+  let health = Math.min(+x.health || 0, TAX.healthInsCap);
+  if((+x.health || 0) > TAX.healthInsCap) notes.push('ประกันสุขภาพใช้ได้ไม่เกิน ' + fmt(TAX.healthInsCap));
+  let life = Math.min(+x.life || 0, TAX.lifeInsCap);
+  if((+x.life || 0) > TAX.lifeInsCap) notes.push('ประกันชีวิตใช้ได้ไม่เกิน ' + fmt(TAX.lifeInsCap));
+  if(life + health > TAX.lifeHealthCap){
+    life = Math.max(0, TAX.lifeHealthCap - health);
+    notes.push('ประกันชีวิต + สุขภาพ รวมกันใช้ได้ไม่เกิน ' + fmt(TAX.lifeHealthCap));
+  }
+  if(life > 0) d.push(['ประกันชีวิต', life]);
+  if(health > 0) d.push(['ประกันสุขภาพ', health]);
+  const ph = Math.min(+x.parentHealth || 0, TAX.parentHealthCap);
+  if((+x.parentHealth || 0) > TAX.parentHealthCap) notes.push('ประกันสุขภาพพ่อแม่ใช้ได้ไม่เกิน ' + fmt(TAX.parentHealthCap));
+  if(ph > 0) d.push(['ประกันสุขภาพพ่อแม่', ph]);
+
+  // กลุ่มเกษียณ: บำนาญ + RMF + กองทุนสำรองฯ รวมไม่เกิน 500,000
+  let pension = Math.min(+x.pension || 0, income * TAX.pensionRate, TAX.pensionCap);
+  if((+x.pension || 0) > pension) notes.push('ประกันบำนาญใช้ได้ไม่เกิน 15% ของรายได้ และไม่เกิน ' + fmt(TAX.pensionCap));
+  let rmf = Math.min(+x.rmf || 0, income * TAX.rmfRate, TAX.rmfCap);
+  if((+x.rmf || 0) > rmf) notes.push('RMF ใช้ได้ไม่เกิน 30% ของรายได้ และไม่เกิน ' + fmt(TAX.rmfCap));
+  let pvd = Math.min(+x.pvd || 0, income * TAX.pvdRate, TAX.pvdCap);
+  if((+x.pvd || 0) > pvd) notes.push('กองทุนสำรองเลี้ยงชีพใช้ได้ไม่เกิน 15% ของค่าจ้าง');
+  if(pension + rmf + pvd > TAX.retireGroupCap){
+    notes.push('กลุ่มเกษียณ (บำนาญ + RMF + กองทุนสำรองฯ) รวมกันใช้ได้ไม่เกิน ' + fmt(TAX.retireGroupCap));
+    let over = pension + rmf + pvd - TAX.retireGroupCap;
+    const cut = v => { const c = Math.min(v, over); over -= c; return v - c; };
+    rmf = cut(rmf); pension = cut(pension); pvd = cut(pvd);
+  }
+  if(pension > 0) d.push(['ประกันบำนาญ', pension]);
+  if(rmf > 0) d.push(['กองทุน RMF', rmf]);
+  if(pvd > 0) d.push(['กองทุนสำรองเลี้ยงชีพ/กบข.', pvd]);
+
+  const esg = Math.min(+x.esg || 0, income * TAX.esgRate, TAX.esgCap);
+  if((+x.esg || 0) > esg) notes.push('Thai ESG ใช้ได้ไม่เกิน 30% ของรายได้ และไม่เกิน ' + fmt(TAX.esgCap));
+  if(esg > 0) d.push(['กองทุน Thai ESG', esg]);
+  const homeLoan = Math.min(+x.homeLoan || 0, TAX.homeLoanCap);
+  if((+x.homeLoan || 0) > homeLoan) notes.push('ดอกเบี้ยกู้ซื้อบ้านใช้ได้ไม่เกิน ' + fmt(TAX.homeLoanCap));
+  if(homeLoan > 0) d.push(['ดอกเบี้ยกู้ซื้อบ้าน', homeLoan]);
+
+  // บริจาค: คิดจากเงินได้หลังหักค่าใช้จ่ายและลดหย่อนอื่นแล้ว (การศึกษา/รพ.รัฐ นับ 2 เท่า)
+  const sumBefore = d.reduce((s, r) => s + r[1], 0);
+  const donBase = Math.max(0, income - expense - sumBefore);
+  const donEdu = Math.min((+x.donEdu || 0) * 2, donBase * TAX.donationRate);
+  if((+x.donEdu || 0) * 2 > donEdu && donBase > 0) notes.push('บริจาคการศึกษาใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน');
+  if(donEdu > 0) d.push(['บริจาคการศึกษา/รพ.รัฐ (นับ 2 เท่า)', donEdu]);
+  const donGen = Math.min(+x.donGen || 0, Math.max(0, donBase - donEdu) * TAX.donationRate);
+  if((+x.donGen || 0) > donGen && donBase > 0) notes.push('บริจาคทั่วไปใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน');
+  if(donGen > 0) d.push(['เงินบริจาคทั่วไป', donGen]);
+
+  Object.assign(used, {life, health, parentHealth: ph, pension, rmf, pvd, esg, homeLoan, donEdu, donGen});
+  const totalDed = d.reduce((s, r) => s + r[1], 0);
+  const net = Math.max(0, income - expense - totalDed);
+  const {tax, steps} = bracketTax(net);
+  const withheld = +p.withheld || 0;
+  return {income, expense, deductions: d, totalDed, net, tax, steps, withheld, diff: tax - withheld, notes, used, donBase};
+}
+
+/* อัตราภาษีขั้นสูงสุดของผู้ใช้ (ไว้บอกว่า "ทุก 100 ที่ลดหย่อน ประหยัดราว X") */
+function marginalRate(net){
+  let r = 0, prev = 0;
+  for(const [cap, rate] of TAX.brackets){ if(net > prev) r = rate; prev = cap; }
+  return r;
+}
+/* ประหยัดภาษีจริงถ้าเพิ่มค่าลดหย่อนอีก add บาท */
+function savingIfAdd(calc, add){
+  return Math.round(calc.tax - bracketTax(Math.max(0, calc.net - add)).tax);
+}
+
+/* ---------- การ์ดภาษีบนหน้าแรก ---------- */
+function taxSummaryCard(){
+  if(!db.taxProfile){
+    return `<div class="card">
+      <h3>🧮 ภาษีปีนี้</h3>
+      <div class="label">ยังไม่ได้ประเมิน — ตอบคำถามสั้น ๆ ไม่กี่ข้อ ระบบจะประมาณการภาษี ภ.ง.ด.91 ให้</div>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="go('tax')">ลองประเมินภาษีปีนี้ →</button>
+    </div>`;
+  }
+  const c = calcTax(db.taxProfile);
+  let line;
+  if(c.tax === 0) line = '<span class="chip good" style="font-size:14px">ไม่ต้องเสียภาษี 🎉</span>';
+  else if(c.diff > 0) line = `ต้องจ่ายเพิ่มประมาณ <b class="money r">${baht(c.diff)}</b>`;
+  else if(c.diff < 0) line = `มีสิทธิได้เงินคืนประมาณ <b class="money g">${baht(-c.diff)}</b>`;
+  else line = '<span class="chip good">หักไว้ครบพอดีแล้ว ✓</span>';
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h3>🧮 ภาษีปี ${TAX.year}</h3><span class="chip warn">ประมาณการเบื้องต้น</span>
+    </div>
+    <div style="font-size:15px;margin:6px 0 2px">ภาษีทั้งปีราว <b class="money">${baht(c.tax)}</b></div>
+    <div style="font-size:15px">${line}</div>
+    <div class="row2" style="margin-top:12px">
+      <button class="btn btn-ghost" style="padding:10px" onclick="go('tax')">ดูรายละเอียด</button>
+      <button class="btn btn-main" style="padding:10px" onclick="go('reduce')">💡 วิธีลดภาษี</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- เมนูภาษีของฉัน ---------- */
+let taxWiz = null;      // {step, d} — ระหว่างทำ wizard
+
+function salarySuggest(){
+  const y = String(new Date().getFullYear());
+  const txs = db.transactions.filter(t => t.type === 'in' && t.cat === 'salary' && t.date.startsWith(y));
+  if(!txs.length) return null;
+  const months = new Set(txs.map(t => monthKey(t.date))).size;
+  return Math.round(txs.reduce((s, t) => s + t.amount, 0) / months);
+}
+
+function startTaxWizard(){
+  const p = db.taxProfile;
+  taxWiz = {
+    step: 0,
+    d: p ? JSON.parse(JSON.stringify(p)) : {
+      salaryMonthly:'', bonus:'', withheld:'', skipWithheld:false,
+      marital:'single', children:0, childrenBoost:0, parents:0,
+      ssoMode:'full', sso:TAX.ssoCap, ded:{}
+    }
+  };
+  if(taxWiz.d.ssoMode === undefined) taxWiz.d.ssoMode = 'custom';
+  renderTax();
+}
+
+function renderTax(){
+  if(taxWiz){ renderWizStep(); return; }
+  if(db.taxProfile){ renderTaxResult(); return; }
+  $('#content').innerHTML = `
+    <div class="card" style="text-align:center;padding:30px 20px">
+      <div style="font-size:44px">🧮</div>
+      <h3 style="font-size:20px;margin:10px 0 6px">รู้ภาษีปีนี้ของคุณใน 2 นาที</h3>
+      <div class="label" style="max-width:400px;margin:0 auto 4px">ตอบคำถามง่าย ๆ 5 ขั้น ไม่ต้องรู้เรื่องภาษีมาก่อน
+      ข้อไหนไม่รู้กด "ข้าม" ได้ ระบบจะประมาณการภาษี ภ.ง.ด.91 ของทั้งปีให้ พร้อมบอกวิธีลด</div>
+      <button class="btn btn-main btn-block" style="margin-top:16px;padding:14px;font-size:16px" onclick="startTaxWizard()">เริ่มเลย →</button>
+    </div>
+    <div class="card">
+      <h3>ภ.ง.ด.91 คืออะไร?</h3>
+      <div class="label" style="font-size:13.5px">แบบยื่นภาษีเงินได้ประจำปีสำหรับคนที่มี<b>รายได้จากงานประจำอย่างเดียว</b>
+      (เงินเดือน โบนัส) ปกติยื่นช่วง ม.ค.–มี.ค. ของปีถัดไป — แอพนี้ช่วยประมาณการล่วงหน้าว่าจะต้องจ่ายเท่าไหร่
+      และควรเตรียมตัวยังไงก่อนสิ้นปี</div>
+    </div>`;
+}
+
+const WIZ_TOTAL = 5;
+function wizTop(title, sub){
+  const s = taxWiz.step + 1;
+  return `<div class="wiz-top">
+      <span class="wiz-step">ขั้นตอน ${s} / ${WIZ_TOTAL}</span>
+      <button class="wiz-step" style="cursor:pointer" onclick="if(confirm('ออกจากแบบประเมินใช่ไหม?')){taxWiz=null;renderTax()}">✕ ออก</button>
+    </div>
+    <div class="meter" style="margin:0 0 14px"><i style="width:${s / WIZ_TOTAL * 100}%"></i></div>
+    <h3 style="font-size:18px;margin-bottom:4px">${title}</h3>
+    <div class="label" style="margin-bottom:12px">${sub}</div>`;
+}
+function wizNav(nextLabel){
+  return `<div class="row2" style="margin-top:16px">
+    ${taxWiz.step > 0 ? '<button class="btn btn-ghost" onclick="wizGo(-1)">← ย้อนกลับ</button>' : '<span></span>'}
+    <button class="btn btn-main" onclick="wizGo(1)">${nextLabel || 'ถัดไป →'}</button>
+  </div>`;
+}
+function wizGo(dir){
+  const d = taxWiz.d;
+  if(dir > 0){
+    if(taxWiz.step === 0){
+      const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0);
+      if(income <= 0){ toast('ใส่เงินเดือนก่อนนะ'); return; }
+    }
+    if(taxWiz.step === WIZ_TOTAL - 1){
+      db.taxProfile = JSON.parse(JSON.stringify(d));
+      save(); taxWiz = null;
+      toast('ประเมินเสร็จแล้ว 🎉');
+      renderTax();
+      return;
+    }
+  }
+  taxWiz.step += dir;
+  renderTax();
+}
+
+function renderWizStep(){
+  const d = taxWiz.d;
+  let html = '';
+  if(taxWiz.step === 0){
+    const sug = salarySuggest();
+    html = wizTop('รายได้ของคุณ 💰', 'นับเฉพาะรายได้จากงานประจำ (ตามแบบ ภ.ง.ด.91)') + `
+      <div class="field"><label class="label">เงินเดือน (บาทต่อเดือน)</label>
+        <input type="number" min="0" value="${d.salaryMonthly}" placeholder="เช่น 30000"
+          oninput="taxWiz.d.salaryMonthly=this.value;updateIncomeHint()">
+        ${sug ? `<button class="chip info" style="margin-top:7px;cursor:pointer" onclick="taxWiz.d.salaryMonthly=${sug};renderTax()">📒 ใช้จากที่จดไว้: ${fmt(sug)}/เดือน</button>` : ''}
+      </div>
+      <div class="field"><label class="label">โบนัส + รายได้อื่นจากงานทั้งปี (ไม่มีใส่ 0)</label>
+        <input type="number" min="0" value="${d.bonus}" placeholder="0"
+          oninput="taxWiz.d.bonus=this.value;updateIncomeHint()"></div>
+      <div class="hint" id="incomeHint" style="display:none"></div>` + wizNav();
+  }
+  else if(taxWiz.step === 1){
+    html = wizTop('ภาษีที่ถูกหักไว้แล้ว 🧾', 'บริษัทมักหักภาษีจากเงินเดือนไว้ล่วงหน้าทุกเดือน ดูจากสลิปเงินเดือนบรรทัด "ภาษีหัก ณ ที่จ่าย" รวมทั้งปีเป็นเท่าไหร่') + `
+      <div class="field"><label class="label">ภาษีที่ถูกหักไว้ทั้งปี (บาท)</label>
+        <input type="number" min="0" value="${d.withheld}" placeholder="เช่น 12000"
+          oninput="taxWiz.d.withheld=this.value"></div>
+      <button class="btn btn-ghost btn-block" onclick="taxWiz.d.withheld=0;wizGo(1)">ไม่รู้ ข้ามไปก่อน (คิดเป็น 0)</button>
+      <div class="hint">💡 ถ้าถูกหักไว้มากกว่าภาษีจริง สิ้นปีมีสิทธิ<b>ขอเงินคืน</b>ได้</div>` + wizNav();
+  }
+  else if(taxWiz.step === 2){
+    const kids = +d.children || 0;
+    html = wizTop('ครอบครัวของคุณ 👨‍👩‍👧', 'คนในครอบครัวช่วยลดภาษีได้ — ตอบตามจริงพอ') + `
+      <div class="label" style="margin-bottom:7px">สถานภาพ</div>
+      <button class="opt ${d.marital==='single'?'sel':''}" onclick="taxWiz.d.marital='single';renderTax()">🙋 โสด</button>
+      <button class="opt ${d.marital==='married_no_income'?'sel':''}" onclick="taxWiz.d.marital='married_no_income';renderTax()">💍 สมรส — คู่สมรสไม่มีรายได้<small>ลดหย่อนเพิ่มได้ ${fmt(TAX.spouse)}</small></button>
+      <button class="opt ${d.marital==='married_income'?'sel':''}" onclick="taxWiz.d.marital='married_income';renderTax()">💍 สมรส — คู่สมรสมีรายได้<small>ต่างคนต่างยื่นของตัวเอง</small></button>
+      <div class="row2" style="margin-top:10px">
+        <div class="field"><label class="label">มีลูกกี่คน</label>
+          <input type="number" min="0" max="15" value="${kids}" oninput="taxWiz.d.children=this.value;updateBoostBox()"></div>
+        <div class="field"><label class="label">พ่อแม่ที่ดูแลอยู่ (คน)</label>
+          <input type="number" min="0" max="4" value="${d.parents||0}" oninput="taxWiz.d.parents=this.value"></div>
+      </div>
+      <div id="boostBox"></div>
+      <div class="hint">พ่อแม่ที่นับได้: อายุ 60 ปีขึ้นไป รายได้ทั้งปีไม่เกิน 30,000 และเราเป็นคนดูแล (นับรวมพ่อแม่คู่สมรสได้ สูงสุด 4 คน)</div>` + wizNav();
+  }
+  else if(taxWiz.step === 3){
+    html = wizTop('ประกันสังคม 🏥', 'มนุษย์เงินเดือนเกือบทุกคนถูกหักเข้าประกันสังคมอยู่แล้ว เอามาลดภาษีได้') + `
+      <button class="opt ${d.ssoMode==='full'?'sel':''}" onclick="taxWiz.d.ssoMode='full';taxWiz.d.sso=${TAX.ssoCap};renderTax()">✅ จ่ายปกติทั้งปี (พนักงานบริษัท)<small>ระบบใส่ให้ ${fmt(TAX.ssoCap)} (เพดานสูงสุด)</small></button>
+      <button class="opt ${d.ssoMode==='custom'?'sel':''}" onclick="taxWiz.d.ssoMode='custom';renderTax()">✏️ กรอกยอดเอง<small>เช่น ทำงานไม่เต็มปี</small></button>
+      <button class="opt ${d.ssoMode==='none'?'sel':''}" onclick="taxWiz.d.ssoMode='none';taxWiz.d.sso=0;renderTax()">❌ ไม่ได้จ่ายประกันสังคม</button>
+      ${d.ssoMode === 'custom' ? `<div class="field"><label class="label">ยอดประกันสังคมทั้งปี (บาท)</label>
+        <input type="number" min="0" value="${d.sso||''}" placeholder="ไม่เกิน ${fmt(TAX.ssoCap)}"
+          oninput="taxWiz.d.sso=this.value;document.getElementById('ssoWarn').style.display=(+this.value>${TAX.ssoCap})?'block':'none'">
+        <span class="warn-txt" id="ssoWarn" style="display:none">⚠️ เกินเพดาน — ใช้ลดหย่อนได้สูงสุด ${fmt(TAX.ssoCap)}</span></div>` : ''}` + wizNav();
+  }
+  else if(taxWiz.step === 4){
+    const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0);
+    d.ded = d.ded || {};
+    const fields = [
+      ['life',        '🛡️ ประกันชีวิต (เบี้ยที่จ่ายปีนี้)',            TAX.lifeInsCap],
+      ['health',      '🏥 ประกันสุขภาพตัวเอง',                        TAX.healthInsCap],
+      ['parentHealth','👨‍👩‍👧 ประกันสุขภาพพ่อแม่',                        TAX.parentHealthCap],
+      ['pension',     '👴 ประกันบำนาญ',                               Math.min(income * TAX.pensionRate, TAX.pensionCap)],
+      ['rmf',         '📈 กองทุน RMF',                                Math.min(income * TAX.rmfRate, TAX.rmfCap)],
+      ['pvd',         '🏦 กองทุนสำรองเลี้ยงชีพ / กบข. (ส่วนที่เราจ่าย)', Math.min(income * TAX.pvdRate, TAX.pvdCap)],
+      ['esg',         '🌱 กองทุน Thai ESG',                            Math.min(income * TAX.esgRate, TAX.esgCap)],
+      ['homeLoan',    '🏠 ดอกเบี้ยกู้ซื้อบ้าน',                        TAX.homeLoanCap],
+      ['donEdu',      '🏫 บริจาคการศึกษา/รพ.รัฐ (e-Donation)',          null],
+      ['donGen',      '🙏 เงินบริจาคทั่วไป',                           null]
+    ];
+    html = wizTop('ลดหย่อนที่มีอยู่แล้ว 📋', 'ปีนี้จ่ายอะไรพวกนี้ไปแล้วบ้าง ใส่ยอดทั้งปี · ไม่มีหรือไม่รู้ ปล่อยว่างแล้วไปต่อได้เลย') +
+      fields.map(([k, label, cap]) => `
+        <div class="field"><label class="label">${label}${cap !== null ? ' <span style="opacity:.7">(เพดาน ' + fmt(Math.floor(cap)) + ')</span>' : ''}</label>
+          <input type="number" min="0" value="${d.ded[k] ?? ''}" placeholder="0"
+            oninput="taxWiz.d.ded['${k}']=this.value;${cap !== null ? `document.getElementById('w_${k}').style.display=(+this.value>${cap})?'block':'none'` : ''}">
+          ${cap !== null ? `<span class="warn-txt" id="w_${k}" style="display:${(+d.ded[k] || 0) > cap ? 'block' : 'none'}">⚠️ เกินเพดาน — ระบบจะคิดให้ที่ ${fmt(Math.floor(cap))}</span>` : ''}
+        </div>`).join('') +
+      `<div class="hint">กลุ่มเกษียณ (บำนาญ + RMF + กองทุนสำรองฯ) รวมกันใช้ได้ไม่เกิน ${fmt(TAX.retireGroupCap)} · เงินบริจาคใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน</div>` +
+      wizNav('ดูผลภาษีของฉัน 🎉');
+  }
+  $('#content').innerHTML = `<div class="card">${html}</div>`;
+  if(taxWiz.step === 0) updateIncomeHint();
+  if(taxWiz.step === 2) updateBoostBox();
+  window.scrollTo(0, 0);
+}
+/* อัปเดตเฉพาะจุดระหว่างพิมพ์ — ห้าม re-render ทั้งหน้า ไม่งั้นปุ่ม "ถัดไป" ต้องกด 2 ครั้ง */
+function updateIncomeHint(){
+  const el = document.getElementById('incomeHint');
+  if(!el || !taxWiz) return;
+  const income = (+taxWiz.d.salaryMonthly || 0) * 12 + (+taxWiz.d.bonus || 0);
+  el.style.display = income > 0 ? 'block' : 'none';
+  if(income > 0) el.innerHTML = 'รวมรายได้ทั้งปีประมาณ <b class="money">' + baht(income) + '</b>';
+}
+function updateBoostBox(){
+  const el = document.getElementById('boostBox');
+  if(!el || !taxWiz) return;
+  const kids = +taxWiz.d.children || 0;
+  el.innerHTML = kids >= 2 ? `<div class="field"><label class="label">ในจำนวนนี้ ลูกคนที่ 2 เป็นต้นไปที่เกิดปี 2561 ขึ้นไป มีกี่คน</label>
+    <input type="number" min="0" max="${kids-1}" value="${taxWiz.d.childrenBoost||0}" oninput="taxWiz.d.childrenBoost=this.value">
+    <span class="warn-txt" style="color:var(--ink2)">คนกลุ่มนี้ลดหย่อนได้ ${fmt(TAX.childBoost)} (ปกติ ${fmt(TAX.childBase)})</span></div>` : '';
+  if(kids < 2) taxWiz.d.childrenBoost = 0;
+}
+
+function renderTaxResult(){
+  const c = calcTax(db.taxProfile);
+  let headline, headColor;
+  if(c.tax === 0){ headline = 'ไม่ต้องเสียภาษี 🎉'; headColor = 'var(--good)'; }
+  else if(c.diff > 0){ headline = 'ต้องจ่ายเพิ่มประมาณ ' + baht(c.diff); headColor = 'var(--bad)'; }
+  else if(c.diff < 0){ headline = 'มีสิทธิได้เงินคืนประมาณ ' + baht(-c.diff); headColor = 'var(--good)'; }
+  else { headline = 'หักไว้ครบพอดีแล้ว ✓'; headColor = 'var(--good)'; }
+  const exempt = TAX.brackets[0][0];
+  $('#content').innerHTML = `
+    <div class="card" style="text-align:center">
+      <div class="label">ภาษีปี ${TAX.year} ทั้งปีของคุณราว ๆ</div>
+      <div class="money" style="font-size:36px;margin:2px 0">${baht(c.tax)}</div>
+      <div style="font-family:'Bai Jamjuree';font-weight:600;font-size:17px;color:${headColor}">${headline}</div>
+      ${c.withheld > 0 ? `<div class="label" style="margin-top:4px">(ถูกหักไว้ระหว่างปีแล้ว ${fmt(c.withheld)})</div>` : ''}
+      <div style="margin-top:10px"><span class="chip warn">⚠️ ประมาณการเบื้องต้น — ก่อนยื่นจริงตรวจกับกรมสรรพากรอีกครั้ง</span></div>
+    </div>
+    ${c.tax > 0 ? `<button class="btn btn-main btn-block" style="margin-bottom:14px" onclick="go('reduce')">💡 ดูวิธีลดภาษีก้อนนี้ →</button>` : ''}
+    <div class="card">
+      <h3>คิดมายังไง? ดูทีละขั้น</h3>
+      <div class="calc-line"><span><span class="step-num">1</span>รายได้ทั้งปี</span><b>${baht(c.income)}</b></div>
+      <div class="calc-line"><span><span class="step-num">2</span>หักค่าใช้จ่าย <span class="sub">(50% ไม่เกิน 100,000 — กฎหมายให้ทุกคน)</span></span><b class="g">−${fmt(c.expense)}</b></div>
+      <div class="calc-line"><span><span class="step-num">3</span>หักค่าลดหย่อนรวม <span class="sub">(รายการด้านล่าง)</span></span><b class="g">−${fmt(c.totalDed)}</b></div>
+      <div class="calc-line"><span><span class="step-num">4</span><b>เงินได้สุทธิ</b> <span class="sub">(ตัวเลขที่เอาไปคิดภาษีจริง ๆ)</span></span><b>${baht(c.net)}</b></div>
+    </div>
+    <div class="card">
+      <h3>ค่าลดหย่อนของคุณ</h3>
+      ${c.deductions.map(([l, v]) => `<div class="calc-line"><span>${l}</span><b>${fmt(v)}</b></div>`).join('')}
+      <div class="calc-line"><span><b>รวม</b></span><b>${fmt(c.totalDed)}</b></div>
+    </div>
+    <div class="card">
+      <h3>ภาษีขั้นบันได</h3>
+      <div class="label" style="margin-bottom:6px">เงินได้สุทธิถูกหั่นเป็นช่วง ๆ แต่ละช่วงเสียภาษีไม่เท่ากัน (ช่วงแรกไม่เสียเลย)</div>
+      ${c.net === 0 ? `<div class="calc-line"><span>เงินได้สุทธิเป็น 0</span><b class="g">ไม่ต้องเสียภาษี</b></div>` :
+        c.steps.map(s => `<div class="calc-line">
+          <span>${fmt(s.from + (s.from ? 1 : 0))} – ${fmt(s.to)} <span class="sub">(${s.rate === 0 ? 'ยกเว้น' : Math.round(s.rate * 100) + '%'})</span></span>
+          <b>${s.rate === 0 ? '0' : fmt(Math.round(s.tax))}</b></div>`).join('')}
+      <div class="calc-line"><span><b>รวมภาษีทั้งปี</b></span><b>${baht(c.tax)}</b></div>
+      ${c.withheld > 0 ? `<div class="calc-line"><span>หักไว้แล้วระหว่างปี</span><b class="g">−${fmt(c.withheld)}</b></div>
+        <div class="calc-line"><span><b>${c.diff >= 0 ? 'ต้องจ่ายเพิ่ม' : 'ได้เงินคืน'}</b></span><b style="color:${headColor}">${baht(Math.abs(c.diff))}</b></div>` : ''}
+    </div>
+    ${c.notes.length ? `<div class="card"><h3>⚠️ ข้อสังเกต</h3>${c.notes.map(n => `<div class="calc-line"><span>${n}</span></div>`).join('')}</div>` : ''}
+    <div class="row2">
+      <button class="btn btn-ghost" onclick="startTaxWizard()">✏️ แก้ไขข้อมูล</button>
+      <button class="btn btn-main" onclick="go('reduce')">💡 วิธีลดภาษี</button>
+    </div>
+    <div class="hint" style="margin-top:12px">ผลนี้เป็นการประมาณการเบื้องต้นจากข้อมูลที่กรอก อ้างอิงเกณฑ์ปีภาษี ${TAX.year} ไม่ใช่คำแนะนำทางภาษีอย่างเป็นทางการ โปรดตรวจสอบกับกรมสรรพากร (rd.go.th) หรือผู้เชี่ยวชาญก่อนยื่นแบบ</div>`;
+}
+
+/* ---------- เมนูลดภาษี ---------- */
+const HELPERS = [
+  {k:'rmf', emoji:'📈', name:'กองทุน RMF',
+   what:'กองทุนรวมเพื่อการเกษียณ — ซื้อปีไหนลดภาษีปีนั้น เงินไปลงทุนต่อให้เราจนเกษียณ',
+   pros:['ลดหย่อนได้เยอะสุดตัวหนึ่ง (30% ของรายได้ ไม่เกิน 500,000)','เลือกความเสี่ยงได้ ตั้งแต่เสี่ยงต่ำถึงหุ้นล้วน','ได้เก็บเงินเกษียณไปในตัว'],
+   cons:['ต้องถือถึงอายุ 55 และซื้อต่อเนื่องทุกปี (เว้นได้ไม่เกิน 1 ปี)','ขายก่อนกำหนดต้องคืนภาษีที่เคยได้','มูลค่าขึ้นลงตามตลาด ขาดทุนได้']},
+  {k:'esg', emoji:'🌱', name:'กองทุน Thai ESG',
+   what:'กองทุนหุ้น/ตราสารหนี้ไทยกลุ่มความยั่งยืน — เพดานแยกต่างหาก ไม่เบียดโควตากลุ่มเกษียณ',
+   pros:['เพดานแยกจาก RMF/ประกันบำนาญ (30% ไม่เกิน 300,000)','ถือแค่ 5 ปีเต็ม สั้นกว่า RMF มาก','ไม่ต้องซื้อต่อเนื่องทุกปี'],
+   cons:['ลงทุนในไทยเป็นหลัก ราคาผันผวนได้','ขายก่อนครบ 5 ปีต้องคืนภาษี','เงื่อนไขอาจเปลี่ยนตามประกาศรัฐแต่ละปี']},
+  {k:'life', emoji:'🛡️', name:'ประกันชีวิต',
+   what:'จ่ายเบี้ยรายปี ได้ความคุ้มครองชีวิต + บางแบบมีเงินคืน/สะสมทรัพย์',
+   pros:['คุ้มครองครอบครัวถ้าเกิดอะไรขึ้นกับเรา','แบบสะสมทรัพย์ได้เงินคืนตอนครบสัญญา','ลดหย่อนได้ถึง 100,000'],
+   cons:['ต้องเป็นกรมธรรม์คุ้มครอง 10 ปีขึ้นไป','เวนคืนก่อนกำหนดมักขาดทุน และอาจต้องคืนภาษี','ผูกพันจ่ายเบี้ยทุกปี']},
+  {k:'health', emoji:'🏥', name:'ประกันสุขภาพ',
+   what:'จ่ายเบี้ยรายปี ป่วยเข้าโรงพยาบาลมีคนช่วยจ่ายค่ารักษา',
+   pros:['ช่วยค่ารักษายามป่วย ไม่ต้องควักเงินก้อน','ลดหย่อนได้ถึง 25,000','ซื้อคู่กับประกันชีวิตได้'],
+   cons:['รวมกับประกันชีวิตแล้วต้องไม่เกิน 100,000','เบี้ยเป็นแบบจ่ายทิ้ง ไม่มีเงินคืน','เบี้ยแพงขึ้นตามอายุ']},
+  {k:'pension', emoji:'👴', name:'ประกันบำนาญ',
+   what:'จ่ายเบี้ยช่วงทำงาน แล้วรับเงินคืนเป็นรายปีหลังเกษียณแบบการันตี',
+   pros:['การันตีเงินใช้หลังเกษียณ ไม่ผันผวนตามตลาด','เพดานลดหย่อนสูง (15% ไม่เกิน 200,000)','เหมาะกับคนไม่ชอบความเสี่ยง'],
+   cons:['ผูกพันจ่ายเบี้ยยาวหลายปี','เอาเงินออกก่อนกำหนดแทบไม่ได้','ผลตอบแทนมักต่ำกว่าการลงทุนเอง']},
+  {k:'parentHealth', emoji:'👨‍👩‍👧', name:'ประกันสุขภาพพ่อแม่',
+   what:'ซื้อประกันสุขภาพให้พ่อแม่ เบี้ยเอามาลดภาษีเราได้',
+   pros:['แบ่งเบาค่ารักษาพ่อแม่ยามป่วย','ลดหย่อนได้ถึง 15,000','ลูกหลายคนช่วยกันจ่ายแบ่งลดหย่อนได้'],
+   cons:['พ่อแม่ต้องมีรายได้ทั้งปีไม่เกิน 30,000','เบี้ยประกันผู้สูงอายุค่อนข้างแพง','บางโรคประจำตัวอาจซื้อไม่ได้']},
+  {k:'donEdu', emoji:'🏫', name:'บริจาคการศึกษา / รพ.รัฐ',
+   what:'บริจาคให้โรงเรียน มหาวิทยาลัย หรือโรงพยาบาลรัฐผ่านระบบ e-Donation',
+   pros:['ลดหย่อนได้ 2 เท่าของเงินที่บริจาค','ได้ช่วยสังคมไปพร้อมกัน','บริจาคเท่าไหร่ก็ได้ ไม่ผูกพันระยะยาว'],
+   cons:['ใช้ได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน','ต้องบริจาคผ่าน e-Donation ให้มีหลักฐาน','เงินบริจาคไม่ได้คืน (ต่างจากการลงทุน)']}
+];
+
+function helperRemaining(c){
+  const u = c.used, inc = c.income;
+  const groupRem = Math.max(0, TAX.retireGroupCap - (u.pension + u.rmf + u.pvd));
+  const lifeHealthRem = Math.max(0, TAX.lifeHealthCap - (u.life + u.health));
+  const donRem = Math.max(0, c.donBase * TAX.donationRate - u.donEdu - u.donGen);
+  return {
+    rmf: Math.min(Math.max(0, Math.min(inc * TAX.rmfRate, TAX.rmfCap) - u.rmf), groupRem),
+    esg: Math.max(0, Math.min(inc * TAX.esgRate, TAX.esgCap) - u.esg),
+    life: Math.min(Math.max(0, TAX.lifeInsCap - u.life), lifeHealthRem),
+    health: Math.min(Math.max(0, TAX.healthInsCap - u.health), lifeHealthRem),
+    pension: Math.min(Math.max(0, Math.min(inc * TAX.pensionRate, TAX.pensionCap) - u.pension), groupRem),
+    parentHealth: Math.max(0, TAX.parentHealthCap - u.parentHealth),
+    donEdu: Math.floor(donRem / 2)     // เงินที่ควักจริง (ลดหย่อนนับ 2 เท่า)
+  };
+}
+
+let simState = {k:null, amt:0};
+function renderReduce(){
+  if(!db.taxProfile){
+    $('#content').innerHTML = `<div class="card" style="text-align:center;padding:30px 20px">
+      <div style="font-size:44px">💡</div>
+      <h3 style="font-size:19px;margin:10px 0 6px">อยากรู้วิธีลดภาษี ต้องรู้ภาษีก่อน</h3>
+      <div class="label">ประเมินภาษีปีนี้ก่อน (2 นาที) แล้วเราจะบอกได้ว่าตัวช่วยไหนคุ้มกับคุณที่สุด</div>
+      <button class="btn btn-main btn-block" style="margin-top:16px" onclick="go('tax')">ไปประเมินภาษีก่อน →</button>
+    </div>`;
+    return;
+  }
+  const c = calcTax(db.taxProfile);
+  if(c.tax === 0){
+    $('#content').innerHTML = `<div class="card" style="text-align:center;padding:30px 20px">
+      <div style="font-size:44px">🎉</div>
+      <h3 style="font-size:19px;margin:10px 0 6px">ปีนี้คุณไม่ต้องเสียภาษีอยู่แล้ว</h3>
+      <div class="label" style="max-width:420px;margin:0 auto">ไม่จำเป็นต้องซื้ออะไรเพิ่มเพื่อลดภาษี —
+      ถ้าอยากเริ่มออมหรือลงทุน RMF / Thai ESG ก็ยังทำได้เพื่ออนาคต แต่จะไม่ช่วยประหยัดภาษีของปีนี้</div>
+      <button class="btn btn-ghost btn-block" style="margin-top:16px" onclick="go('tax')">ดูผลภาษีของฉัน</button>
+    </div>`;
+    return;
+  }
+  const rem = helperRemaining(c);
+  const rate = marginalRate(c.net);
+  // เรียงการ์ดตามเงินภาษีที่ประหยัดได้จริงมากสุด
+  const cards = HELPERS.map(h => {
+    const r = Math.floor(rem[h.k] || 0);
+    const factor = h.k === 'donEdu' ? 2 : 1;
+    return {...h, rem: r, maxSave: r > 0 ? savingIfAdd(c, r * factor) : 0, factor};
+  }).sort((a, b) => b.maxSave - a.maxSave);
+  const simmable = cards.filter(x => x.rem > 0);
+  if(!simState.k || !simmable.find(x => x.k === simState.k)){
+    simState = {k: simmable[0] ? simmable[0].k : null, amt: 0};
+  }
+  $('#content').innerHTML = `
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div><div class="label">ตอนนี้คาดว่าต้องเสียภาษี</div>
+        <div class="money" style="font-size:24px">${baht(c.tax)}</div></div>
+      <div style="text-align:right"><div class="label">ฐานภาษีสูงสุดของคุณ</div>
+        <span class="chip info" style="font-size:14px">${Math.round(rate * 100)}%</span>
+        <div class="label" style="margin-top:3px">ลดหย่อนเพิ่มทุก 100 บาท<br>ประหยัดราว ${Math.round(rate * 100)} บาท</div></div>
+    </div>
+    ${simState.k ? `
+    <div class="card" style="border:1.5px solid var(--accent)">
+      <h3>🧪 ลองเลื่อนดู: ถ้าลงทุนเพิ่ม จะประหยัดเท่าไหร่?</h3>
+      <select style="margin:6px 0 10px" onchange="simState.k=this.value;simState.amt=0;renderReduce()">
+        ${simmable.map(x => `<option value="${x.k}" ${x.k === simState.k ? 'selected' : ''}>${x.emoji} ${x.name} (เหลือโควตา ${fmt(x.rem)})</option>`).join('')}
+      </select>
+      <input type="range" id="simRange" min="0" max="${simmable.find(x => x.k === simState.k).rem}" step="${simmable.find(x => x.k === simState.k).rem > 20000 ? 1000 : 100}" value="${simState.amt}" oninput="simState.amt=+this.value;updateSim()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <div><div class="label">ถ้าลงทุนเพิ่ม</div><div class="money" id="simAmt" style="font-size:19px">฿0</div></div>
+        <div style="font-size:22px;color:var(--ink2)">→</div>
+        <div style="text-align:right"><div class="label">ภาษีจะเหลือ</div><div class="money" id="simTax" style="font-size:19px">${baht(c.tax)}</div>
+          <div class="label" id="simSave" style="color:var(--good);font-weight:600"></div></div>
+      </div>
+    </div>` : ''}
+    <h3 style="margin:16px 2px 10px;font-size:16px">ตัวช่วยลดภาษีของคุณ เรียงตามความคุ้ม</h3>
+    ${cards.map(h => h.rem > 0 ? `
+      <div class="card helper-card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <h3 style="margin:0">${h.emoji} ${h.name}</h3>
+          <span class="chip good">ประหยัดได้ถึง ~${fmt(h.maxSave)}</span>
+        </div>
+        <div class="label" style="margin:6px 0 8px">${h.what}</div>
+        <div class="calc-line"><span>ซื้อเพิ่มได้อีก${h.k === 'donEdu' ? ' (เงินบริจาคจริง)' : ''}</span><b>${baht(h.rem)}</b></div>
+        <div class="row2" style="margin-top:10px;align-items:start">
+          <div><div class="label" style="font-weight:600;color:var(--good);margin-bottom:2px">ข้อดี</div><ul class="pros">${h.pros.map(x => '<li>' + x + '</li>').join('')}</ul></div>
+          <div><div class="label" style="font-weight:600;color:var(--warn);margin-bottom:2px">ข้อควรระวัง</div><ul class="cons">${h.cons.map(x => '<li>' + x + '</li>').join('')}</ul></div>
+        </div>
+      </div>` : `
+      <div class="card" style="opacity:.65">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3 style="margin:0">${h.emoji} ${h.name}</h3><span class="chip info">ใช้เต็มโควตาแล้ว ✓</span>
+        </div>
+      </div>`).join('')}
+    <div class="hint" style="margin-top:4px">💬 ตัวเลข "ประหยัดได้" คิดจากอัตราภาษีของคุณตอนนี้ เป็นการประมาณการ ·
+    ข้อมูลนี้ช่วยให้เข้าใจตัวเลือก <b>ไม่ใช่คำแนะนำการลงทุนอย่างเป็นทางการ</b> —
+    ก่อนซื้อจริงศึกษาเงื่อนไขของแต่ละผลิตภัณฑ์ และเลือกผู้ให้บริการที่ได้รับอนุญาตจาก ก.ล.ต. / คปภ.</div>`;
+}
+function updateSim(){
+  const c = calcTax(db.taxProfile);
+  const h = HELPERS.find(x => x.k === simState.k);
+  const factor = h && h.k === 'donEdu' ? 2 : 1;
+  const saveAmt = savingIfAdd(c, simState.amt * factor);
+  document.getElementById('simAmt').textContent = baht(simState.amt);
+  document.getElementById('simTax').textContent = baht(Math.max(0, c.tax - saveAmt));
+  document.getElementById('simSave').textContent = saveAmt > 0 ? 'ประหยัด ' + fmt(saveAmt) + ' บาท' : '';
+}
+/* ===== END TAX MODULE ===== */
+
+/* ===== LIFF (TASK 7) ===== */
+/* เปิดในไลน์ผ่าน LIFF: ใส่ LIFF ID ตรงนี้จุดเดียว หรือกรอกในหน้าตั้งค่า ⚙️ ก็ได้
+   ไม่ใส่ = แอพทำงานในเบราว์เซอร์ปกติทุกอย่าง · โหลด SDK ไม่ได้ = ไม่พัง แค่ไม่ทักชื่อจากไลน์ */
+const LIFF_ID = '';                    // ← เช่น '1234567890-AbcdEfgh' (อย่า commit ค่าจริงลง repo สาธารณะ)
+let liffReady = false;
+function initLiff(){
+  const id = ((db.settings.liffId || '') || LIFF_ID).trim();
+  if(!id || liffReady || window.liff) return;
+  const s = document.createElement('script');
+  s.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+  s.onload = async () => {
+    try{
+      await liff.init({liffId: id});
+      liffReady = true;
+      if(liff.isLoggedIn()){
+        const prof = await liff.getProfile();
+        if(prof && prof.displayName && !db.settings.name){
+          db.settings.name = prof.displayName;   // ทักทายด้วยชื่อจากไลน์
+          save();
+          if(view === 'home') renderHome();
+        }
+      }
+    }catch(e){ console.warn('LIFF init ไม่สำเร็จ (ใช้งานต่อได้ปกติ):', e); }
+  };
+  s.onerror = () => console.warn('โหลด LIFF SDK ไม่ได้ — ใช้งานนอกไลน์ได้ตามปกติ');
+  document.head.appendChild(s);
+}
+initLiff();
+/* ===== END LIFF ===== */
+
+go('home');
+</script>
+</body>
+</html>
