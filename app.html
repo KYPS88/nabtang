@@ -177,6 +177,9 @@ input[type=range]{width:100%;accent-color:var(--accent);height:34px}
     <h3>⚙️ ตั้งค่า</h3>
     <div class="field"><label class="label">ชื่อเล่นของคุณ (ไว้ทักทาย)</label>
       <input type="text" id="setName" placeholder="เช่น ต้น"></div>
+    <div class="field"><label class="label">LIFF ID (สำหรับเปิดในไลน์ — เว้นว่างได้)</label>
+      <input type="text" id="setLiff" placeholder="เช่น 1234567890-AbcdEfgh">
+      <span class="warn-txt" style="color:var(--ink2)">ดูวิธีขอ LIFF ID ได้ในไฟล์ SETUP.md</span></div>
     <div class="row2">
       <button class="btn btn-ghost" onclick="closeModal('settingsModal')">ปิด</button>
       <button class="btn btn-main" onclick="saveSettings()">บันทึก</button>
@@ -303,10 +306,18 @@ function go(v){
 document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => go(b.dataset.view)));
 $('#burger').addEventListener('click', () => { $('#sidebar').classList.add('open'); $('#overlay').classList.add('show'); });
 $('#overlay').addEventListener('click', () => { $('#sidebar').classList.remove('open'); $('#overlay').classList.remove('show'); });
-$('#gearBtn').addEventListener('click', () => { $('#setName').value = db.settings.name || ''; openModal('settingsModal'); });
+$('#gearBtn').addEventListener('click', () => {
+  $('#setName').value = db.settings.name || '';
+  $('#setLiff').value = db.settings.liffId || '';
+  openModal('settingsModal');
+});
 function saveSettings(){
   db.settings.name = $('#setName').value.trim();
+  const newLiff = $('#setLiff').value.trim();
+  const changed = newLiff !== (db.settings.liffId || '');
+  db.settings.liffId = newLiff;
   save(); closeModal('settingsModal'); toast('บันทึกแล้ว ✓');
+  if(changed && newLiff) initLiff();
   if(view === 'home') renderHome();
 }
 
@@ -1123,6 +1134,33 @@ function updateSim(){
 /* ===== END TAX MODULE ===== */
 
 /* ===== LIFF (TASK 7) ===== */
+/* เปิดในไลน์ผ่าน LIFF: ใส่ LIFF ID ตรงนี้จุดเดียว หรือกรอกในหน้าตั้งค่า ⚙️ ก็ได้
+   ไม่ใส่ = แอพทำงานในเบราว์เซอร์ปกติทุกอย่าง · โหลด SDK ไม่ได้ = ไม่พัง แค่ไม่ทักชื่อจากไลน์ */
+const LIFF_ID = '';                    // ← เช่น '1234567890-AbcdEfgh' (อย่า commit ค่าจริงลง repo สาธารณะ)
+let liffReady = false;
+function initLiff(){
+  const id = ((db.settings.liffId || '') || LIFF_ID).trim();
+  if(!id || liffReady || window.liff) return;
+  const s = document.createElement('script');
+  s.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+  s.onload = async () => {
+    try{
+      await liff.init({liffId: id});
+      liffReady = true;
+      if(liff.isLoggedIn()){
+        const prof = await liff.getProfile();
+        if(prof && prof.displayName && !db.settings.name){
+          db.settings.name = prof.displayName;   // ทักทายด้วยชื่อจากไลน์
+          save();
+          if(view === 'home') renderHome();
+        }
+      }
+    }catch(e){ console.warn('LIFF init ไม่สำเร็จ (ใช้งานต่อได้ปกติ):', e); }
+  };
+  s.onerror = () => console.warn('โหลด LIFF SDK ไม่ได้ — ใช้งานนอกไลน์ได้ตามปกติ');
+  document.head.appendChild(s);
+}
+initLiff();
 /* ===== END LIFF ===== */
 
 go('home');
