@@ -1,4 +1,4 @@
-# TASKS.md — ลำดับงานสร้าง "MoneyLine ผู้ช่วยการเงินและภาษีในไลน์"
+# TASKS.md — ลำดับงานสร้าง "นับตัง ผู้ช่วยการเงินและภาษีในไลน์"
 ทำทีละ TASK เรียงลำดับ ห้ามข้าม · จบทุกก้อนต้องผ่านเช็คพอยต์ก่อนไปต่อ
 
 ## TASK 1 — Showcase ทั้งระบบ (index.html)
@@ -8,7 +8,7 @@
 
 ## TASK 2 — โครงแอพจริง (app.html)
 Shell ตามสกิน HomeOffice: sidebar (มือถือเป็น ☰) + เมนูครบ 6 + topbar
-+ โครง localStorage คีย์ "moneyline_app" (transactions / categories / taxProfile / settings) พร้อมหมวดหมู่ชุดเริ่มต้น
++ โครง localStorage คีย์ "nabtang_app" (transactions / categories / taxProfile / settings) พร้อมหมวดหมู่ชุดเริ่มต้น
 + วางโค้ด LIFF init แบบ placeholder (ไม่มี LIFF ID ก็เปิดในเบราว์เซอร์ได้ปกติ)
 เช็คพอยต์: สลับครบ 6 เมนู · รีเฟรชแล้วข้อมูลไม่หาย · เปิดในเบราว์เซอร์ธรรมดาไม่มี error
 

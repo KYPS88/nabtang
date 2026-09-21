@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MoneyLine — ผู้ช่วยการเงินและภาษีในไลน์</title>
+<title>นับตัง (NABTANG) — ผู้ช่วยการเงินและภาษีในไลน์</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Bai+Jamjuree:wght@500;600;700&display=swap" rel="stylesheet">
@@ -150,7 +150,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:34px}
 <body>
 
 <aside class="sidebar" id="sidebar">
-  <div class="brand"><span class="dot">💚</span>MoneyLine</div>
+  <div class="brand"><span class="dot">💚</span>นับตัง</div>
   <button class="nav-btn" data-view="home"><span class="ic">🏠</span>หน้าแรก</button>
   <button class="nav-btn" data-view="add"><span class="ic">✏️</span>จดเงิน</button>
   <button class="nav-btn" data-view="list"><span class="ic">📒</span>รายการ</button>
@@ -204,7 +204,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:34px}
 
 <script>
 /* ================= ข้อมูล & storage ================= */
-const STORE_KEY = 'moneyline_app';
+const STORE_KEY = 'nabtang_app';
 
 function defaultDb(){
   return {
@@ -235,7 +235,8 @@ function defaultDb(){
 let db;
 function load(){
   try{
-    const raw = localStorage.getItem(STORE_KEY);
+    // ย้ายข้อมูลจากคีย์ชื่อเดิม "moneyline_app" (ก่อน rebrand เป็นนับตัง) ให้อัตโนมัติ
+    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('moneyline_app');
     if(raw){
       const d = JSON.parse(raw);
       const base = defaultDb();
@@ -536,7 +537,7 @@ function exportCSV(){
   const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
-  a.download = 'moneyline_' + (f.month === 'all' ? 'all' : f.month) + '.csv';
+  a.download = 'nabtang_' + (f.month === 'all' ? 'all' : f.month) + '.csv';
   a.click();
   URL.revokeObjectURL(a.href);
   toast('ออกไฟล์ CSV แล้ว ✓');
