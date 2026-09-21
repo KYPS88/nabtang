@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MoneyLine — ผู้ช่วยการเงินและภาษีในไลน์</title>
+<title>นับตัง (NABTANG) — ผู้ช่วยการเงินและภาษีในไลน์</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Bai+Jamjuree:wght@500;600;700&display=swap" rel="stylesheet">
@@ -150,7 +150,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:34px}
 <body>
 
 <aside class="sidebar" id="sidebar">
-  <div class="brand"><span class="dot">💚</span>MoneyLine</div>
+  <div class="brand"><span class="dot">💚</span>นับตัง</div>
   <button class="nav-btn" data-view="home"><span class="ic">🏠</span>หน้าแรก</button>
   <button class="nav-btn" data-view="add"><span class="ic">✏️</span>จดเงิน</button>
   <button class="nav-btn" data-view="list"><span class="ic">📒</span>รายการ</button>
@@ -204,7 +204,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:34px}
 
 <script>
 /* ================= ข้อมูล & storage ================= */
-const STORE_KEY = 'moneyline_app';
+const STORE_KEY = 'nabtang_app';
 
 function defaultDb(){
   return {
@@ -235,7 +235,8 @@ function defaultDb(){
 let db;
 function load(){
   try{
-    const raw = localStorage.getItem(STORE_KEY);
+    // ย้ายข้อมูลจากคีย์ชื่อเดิม "moneyline_app" (ก่อน rebrand เป็นนับตัง) ให้อัตโนมัติ
+    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('moneyline_app');
     if(raw){
       const d = JSON.parse(raw);
       const base = defaultDb();
@@ -536,7 +537,7 @@ function exportCSV(){
   const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
-  a.download = 'moneyline_' + (f.month === 'all' ? 'all' : f.month) + '.csv';
+  a.download = 'nabtang_' + (f.month === 'all' ? 'all' : f.month) + '.csv';
   a.click();
   URL.revokeObjectURL(a.href);
   toast('ออกไฟล์ CSV แล้ว ✓');
@@ -653,7 +654,12 @@ function bracketTax(net){
 
 /* คำนวณภาษีทั้งก้อนจาก taxProfile → คืน breakdown ครบทุกขั้น */
 function calcTax(p){
-  const income = Math.max(0, (+p.salaryMonthly || 0) * 12 + (+p.bonus || 0));
+  // เงินได้ 2 ก้อน: งานประจำ (ประเภทที่ 1) + ฟรีแลนซ์/รับจ้างอิสระ (ประเภทที่ 2)
+  // กฎหมายให้หักค่าใช้จ่าย 50% ของสองก้อนนี้ "รวมกัน" ไม่เกิน 100,000
+  const salaryIncome = Math.max(0, (+p.salaryMonthly || 0) * 12 + (+p.bonus || 0));
+  const freelance = Math.max(0, +p.freelance || 0);
+  const income = salaryIncome + freelance;
+  const formType = freelance > 0 ? 'ภ.ง.ด.90' : 'ภ.ง.ด.91';
   const expense = Math.min(income * TAX.expenseRate, TAX.expenseCap);
   const notes = [];
   const d = [];                          // [label, amount] เรียงโชว์ผู้ใช้
@@ -727,7 +733,7 @@ function calcTax(p){
   const net = Math.max(0, income - expense - totalDed);
   const {tax, steps} = bracketTax(net);
   const withheld = +p.withheld || 0;
-  return {income, expense, deductions: d, totalDed, net, tax, steps, withheld, diff: tax - withheld, notes, used, donBase};
+  return {income, salaryIncome, freelance, formType, expense, deductions: d, totalDed, net, tax, steps, withheld, diff: tax - withheld, notes, used, donBase};
 }
 
 /* อัตราภาษีขั้นสูงสุดของผู้ใช้ (ไว้บอกว่า "ทุก 100 ที่ลดหย่อน ประหยัดราว X") */
@@ -785,7 +791,7 @@ function startTaxWizard(){
   taxWiz = {
     step: 0,
     d: p ? JSON.parse(JSON.stringify(p)) : {
-      salaryMonthly:'', bonus:'', withheld:'', skipWithheld:false,
+      salaryMonthly:'', bonus:'', freelance:'', withheld:'', skipWithheld:false,
       marital:'single', children:0, childrenBoost:0, parents:0,
       ssoMode:'full', sso:TAX.ssoCap, ded:{}
     }
@@ -802,14 +808,16 @@ function renderTax(){
       <div style="font-size:44px">🧮</div>
       <h3 style="font-size:20px;margin:10px 0 6px">รู้ภาษีปีนี้ของคุณใน 2 นาที</h3>
       <div class="label" style="max-width:400px;margin:0 auto 4px">ตอบคำถามง่าย ๆ 5 ขั้น ไม่ต้องรู้เรื่องภาษีมาก่อน
-      ข้อไหนไม่รู้กด "ข้าม" ได้ ระบบจะประมาณการภาษี ภ.ง.ด.91 ของทั้งปีให้ พร้อมบอกวิธีลด</div>
+      ข้อไหนไม่รู้กด "ข้าม" ได้ รองรับทั้งพนักงานบริษัทและฟรีแลนซ์ —
+      ระบบจะประมาณการภาษีทั้งปีให้ พร้อมบอกว่าต้องยื่นแบบไหน (ภ.ง.ด.90 หรือ 91) และวิธีลดภาษี</div>
       <button class="btn btn-main btn-block" style="margin-top:16px;padding:14px;font-size:16px" onclick="startTaxWizard()">เริ่มเลย →</button>
     </div>
     <div class="card">
-      <h3>ภ.ง.ด.91 คืออะไร?</h3>
-      <div class="label" style="font-size:13.5px">แบบยื่นภาษีเงินได้ประจำปีสำหรับคนที่มี<b>รายได้จากงานประจำอย่างเดียว</b>
-      (เงินเดือน โบนัส) ปกติยื่นช่วง ม.ค.–มี.ค. ของปีถัดไป — แอพนี้ช่วยประมาณการล่วงหน้าว่าจะต้องจ่ายเท่าไหร่
-      และควรเตรียมตัวยังไงก่อนสิ้นปี</div>
+      <h3>ภ.ง.ด.91 กับ ภ.ง.ด.90 ต่างกันยังไง?</h3>
+      <div class="label" style="font-size:13.5px">ทั้งคู่คือแบบยื่นภาษีประจำปี ยื่นช่วง ม.ค.–มี.ค. ของปีถัดไป —
+      <b>ภ.ง.ด.91</b> สำหรับคนมีรายได้จาก<b>งานประจำอย่างเดียว</b> (เงินเดือน โบนัส) ·
+      <b>ภ.ง.ด.90</b> สำหรับคนที่มี<b>รายได้อื่นด้วย</b> เช่น งานฟรีแลนซ์ รับจ้างอิสระ ค่าคอมมิชชั่น
+      ไม่ต้องจำก็ได้ — กรอกรายได้มา แล้วระบบจะบอกให้เองว่าคุณต้องยื่นแบบไหน</div>
     </div>`;
 }
 
@@ -834,8 +842,8 @@ function wizGo(dir){
   const d = taxWiz.d;
   if(dir > 0){
     if(taxWiz.step === 0){
-      const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0);
-      if(income <= 0){ toast('ใส่เงินเดือนก่อนนะ'); return; }
+      const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0) + (+d.freelance || 0);
+      if(income <= 0){ toast('ใส่รายได้อย่างน้อย 1 ช่องก่อนนะ'); return; }
     }
     if(taxWiz.step === WIZ_TOTAL - 1){
       db.taxProfile = JSON.parse(JSON.stringify(d));
@@ -854,19 +862,23 @@ function renderWizStep(){
   let html = '';
   if(taxWiz.step === 0){
     const sug = salarySuggest();
-    html = wizTop('รายได้ของคุณ 💰', 'นับเฉพาะรายได้จากงานประจำ (ตามแบบ ภ.ง.ด.91)') + `
-      <div class="field"><label class="label">เงินเดือน (บาทต่อเดือน)</label>
+    html = wizTop('รายได้ของคุณ 💰', 'งานประจำ และงานฟรีแลนซ์/รับจ้างอิสระ (ถ้ามี) — มีแบบไหนกรอกแบบนั้น') + `
+      <div class="field"><label class="label">เงินเดือนจากงานประจำ (บาทต่อเดือน · ไม่มีใส่ 0)</label>
         <input type="number" min="0" value="${d.salaryMonthly}" placeholder="เช่น 30000"
           oninput="taxWiz.d.salaryMonthly=this.value;updateIncomeHint()">
         ${sug ? `<button class="chip info" style="margin-top:7px;cursor:pointer" onclick="taxWiz.d.salaryMonthly=${sug};renderTax()">📒 ใช้จากที่จดไว้: ${fmt(sug)}/เดือน</button>` : ''}
       </div>
-      <div class="field"><label class="label">โบนัส + รายได้อื่นจากงานทั้งปี (ไม่มีใส่ 0)</label>
+      <div class="field"><label class="label">โบนัส + รายได้อื่นจากงานประจำทั้งปี (ไม่มีใส่ 0)</label>
         <input type="number" min="0" value="${d.bonus}" placeholder="0"
           oninput="taxWiz.d.bonus=this.value;updateIncomeHint()"></div>
+      <div class="field"><label class="label">รายได้ฟรีแลนซ์/รับจ้างอิสระทั้งปี (ไม่มีใส่ 0)</label>
+        <input type="number" min="0" value="${d.freelance ?? ''}" placeholder="0"
+          oninput="taxWiz.d.freelance=this.value;updateIncomeHint()">
+        <span class="warn-txt" style="color:var(--ink2)">เช่น รับงานนอก ค่าคอมมิชชั่น ค่าจ้างทั่วไป (เงินได้ประเภทที่ 2) — งานพวกนี้มักถูกหักภาษี 3% ไว้แล้วตอนรับเงิน</span></div>
       <div class="hint" id="incomeHint" style="display:none"></div>` + wizNav();
   }
   else if(taxWiz.step === 1){
-    html = wizTop('ภาษีที่ถูกหักไว้แล้ว 🧾', 'บริษัทมักหักภาษีจากเงินเดือนไว้ล่วงหน้าทุกเดือน ดูจากสลิปเงินเดือนบรรทัด "ภาษีหัก ณ ที่จ่าย" รวมทั้งปีเป็นเท่าไหร่') + `
+    html = wizTop('ภาษีที่ถูกหักไว้แล้ว 🧾', 'บริษัทมักหักภาษีจากเงินเดือนไว้ล่วงหน้าทุกเดือน (ดูสลิปเงินเดือนบรรทัด "ภาษีหัก ณ ที่จ่าย") ส่วนงานฟรีแลนซ์มักถูกหัก 3% ตอนรับเงิน (ดูใบ 50 ทวิ ที่ผู้จ้างให้) — รวมทุกก้อนทั้งปีเป็นเท่าไหร่') + `
       <div class="field"><label class="label">ภาษีที่ถูกหักไว้ทั้งปี (บาท)</label>
         <input type="number" min="0" value="${d.withheld}" placeholder="เช่น 12000"
           oninput="taxWiz.d.withheld=this.value"></div>
@@ -892,7 +904,7 @@ function renderWizStep(){
   else if(taxWiz.step === 3){
     html = wizTop('ประกันสังคม 🏥', 'มนุษย์เงินเดือนเกือบทุกคนถูกหักเข้าประกันสังคมอยู่แล้ว เอามาลดภาษีได้') + `
       <button class="opt ${d.ssoMode==='full'?'sel':''}" onclick="taxWiz.d.ssoMode='full';taxWiz.d.sso=${TAX.ssoCap};renderTax()">✅ จ่ายปกติทั้งปี (พนักงานบริษัท)<small>ระบบใส่ให้ ${fmt(TAX.ssoCap)} (เพดานสูงสุด)</small></button>
-      <button class="opt ${d.ssoMode==='custom'?'sel':''}" onclick="taxWiz.d.ssoMode='custom';renderTax()">✏️ กรอกยอดเอง<small>เช่น ทำงานไม่เต็มปี</small></button>
+      <button class="opt ${d.ssoMode==='custom'?'sel':''}" onclick="taxWiz.d.ssoMode='custom';renderTax()">✏️ กรอกยอดเอง<small>เช่น ทำงานไม่เต็มปี หรือฟรีแลนซ์ที่ส่งเอง (มาตรา 39/40)</small></button>
       <button class="opt ${d.ssoMode==='none'?'sel':''}" onclick="taxWiz.d.ssoMode='none';taxWiz.d.sso=0;renderTax()">❌ ไม่ได้จ่ายประกันสังคม</button>
       ${d.ssoMode === 'custom' ? `<div class="field"><label class="label">ยอดประกันสังคมทั้งปี (บาท)</label>
         <input type="number" min="0" value="${d.sso||''}" placeholder="ไม่เกิน ${fmt(TAX.ssoCap)}"
@@ -933,9 +945,11 @@ function renderWizStep(){
 function updateIncomeHint(){
   const el = document.getElementById('incomeHint');
   if(!el || !taxWiz) return;
-  const income = (+taxWiz.d.salaryMonthly || 0) * 12 + (+taxWiz.d.bonus || 0);
+  const d = taxWiz.d;
+  const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0) + (+d.freelance || 0);
   el.style.display = income > 0 ? 'block' : 'none';
-  if(income > 0) el.innerHTML = 'รวมรายได้ทั้งปีประมาณ <b class="money">' + baht(income) + '</b>';
+  if(income > 0) el.innerHTML = 'รวมรายได้ทั้งปีประมาณ <b class="money">' + baht(income) + '</b>' +
+    ((+d.freelance || 0) > 0 ? ' · มีรายได้ฟรีแลนซ์ → ยื่นแบบ <b>ภ.ง.ด.90</b> (เดี๋ยวระบบอธิบายให้)' : '');
 }
 function updateBoostBox(){
   const el = document.getElementById('boostBox');
@@ -962,11 +976,12 @@ function renderTaxResult(){
       <div style="font-family:'Bai Jamjuree';font-weight:600;font-size:17px;color:${headColor}">${headline}</div>
       ${c.withheld > 0 ? `<div class="label" style="margin-top:4px">(ถูกหักไว้ระหว่างปีแล้ว ${fmt(c.withheld)})</div>` : ''}
       <div style="margin-top:10px"><span class="chip warn">⚠️ ประมาณการเบื้องต้น — ก่อนยื่นจริงตรวจกับกรมสรรพากรอีกครั้ง</span></div>
+      <div class="label" style="margin-top:8px">แบบที่ต้องยื่น: <b>${c.formType}</b> ${c.freelance > 0 ? '(เพราะมีรายได้ฟรีแลนซ์/นอกงานประจำ)' : '(เงินได้จากงานประจำอย่างเดียว)'} · ช่วงยื่น ม.ค.–มี.ค. ปีถัดไป</div>
     </div>
     ${c.tax > 0 ? `<button class="btn btn-main btn-block" style="margin-bottom:14px" onclick="go('reduce')">💡 ดูวิธีลดภาษีก้อนนี้ →</button>` : ''}
     <div class="card">
       <h3>คิดมายังไง? ดูทีละขั้น</h3>
-      <div class="calc-line"><span><span class="step-num">1</span>รายได้ทั้งปี</span><b>${baht(c.income)}</b></div>
+      <div class="calc-line"><span><span class="step-num">1</span>รายได้ทั้งปี${c.freelance > 0 ? ` <span class="sub">(งานประจำ ${fmt(c.salaryIncome)} + ฟรีแลนซ์ ${fmt(c.freelance)})</span>` : ''}</span><b>${baht(c.income)}</b></div>
       <div class="calc-line"><span><span class="step-num">2</span>หักค่าใช้จ่าย <span class="sub">(50% ไม่เกิน 100,000 — กฎหมายให้ทุกคน)</span></span><b class="g">−${fmt(c.expense)}</b></div>
       <div class="calc-line"><span><span class="step-num">3</span>หักค่าลดหย่อนรวม <span class="sub">(รายการด้านล่าง)</span></span><b class="g">−${fmt(c.totalDed)}</b></div>
       <div class="calc-line"><span><span class="step-num">4</span><b>เงินได้สุทธิ</b> <span class="sub">(ตัวเลขที่เอาไปคิดภาษีจริง ๆ)</span></span><b>${baht(c.net)}</b></div>

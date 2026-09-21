@@ -1,0 +1,9 @@
+{
+  "name": "nabtang",
+  "version": "1.0.0",
+  "private": true,
+  "description": "นับตัง (NABTANG) — ผู้ช่วยการเงินและภาษีในไลน์",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
