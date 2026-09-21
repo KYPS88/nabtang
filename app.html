@@ -867,16 +867,17 @@ function renderWizStep(){
   if(taxWiz.step === 0){
     const sug = salarySuggest();
     html = wizTop('รายได้ของคุณ 💰', 'งานประจำ และงานฟรีแลนซ์/รับจ้างอิสระ (ถ้ามี) — มีแบบไหนกรอกแบบนั้น') + `
-      <div class="field"><label class="label">เงินเดือนจากงานประจำ (บาทต่อเดือน · ไม่มีใส่ 0)</label>
+      <div class="field"><label class="label">เงินเดือนจากงานประจำ <span class="chip info">ใส่ยอด "ต่อเดือน"</span></label>
         <input type="number" min="0" value="${d.salaryMonthly}" placeholder="เช่น 30000"
           oninput="taxWiz.d.salaryMonthly=this.value;updateIncomeHint()">
+        <span class="warn-txt" style="color:var(--ink2)">ใส่แค่ยอดเดือนเดียวพอ เดี๋ยวระบบคูณ 12 เดือนให้เอง</span>
         ${sug ? `<button class="chip info" style="margin-top:7px;cursor:pointer" onclick="taxWiz.d.salaryMonthly=${sug};renderTax()">📒 ใช้จากที่จดไว้: ${fmt(sug)}/เดือน</button>` : ''}
       </div>
-      <div class="field"><label class="label">โบนัส + รายได้อื่นจากงานประจำทั้งปี (ไม่มีใส่ 0)</label>
-        <input type="number" min="0" value="${d.bonus}" placeholder="0"
+      <div class="field"><label class="label">โบนัส + รายได้อื่นจากงานประจำ <span class="chip good">ใส่ยอด "รวมทั้งปี"</span></label>
+        <input type="number" min="0" value="${d.bonus}" placeholder="ไม่มีใส่ 0"
           oninput="taxWiz.d.bonus=this.value;updateIncomeHint()"></div>
-      <div class="field"><label class="label">รายได้ฟรีแลนซ์/รับจ้างอิสระทั้งปี (ไม่มีใส่ 0)</label>
-        <input type="number" min="0" value="${d.freelance ?? ''}" placeholder="0"
+      <div class="field"><label class="label">รายได้ฟรีแลนซ์/รับจ้างอิสระ <span class="chip good">ใส่ยอด "รวมทั้งปี"</span></label>
+        <input type="number" min="0" value="${d.freelance ?? ''}" placeholder="ไม่มีใส่ 0"
           oninput="taxWiz.d.freelance=this.value;updateIncomeHint()">
         <span class="warn-txt" style="color:var(--ink2)">เช่น รับงานนอก ค่าคอมมิชชั่น ค่าจ้างทั่วไป (เงินได้ประเภทที่ 2) — งานพวกนี้มักถูกหักภาษี 3% ไว้แล้วตอนรับเงิน</span></div>
       <div class="hint" id="incomeHint" style="display:none"></div>` + wizNav();
@@ -950,10 +951,18 @@ function updateIncomeHint(){
   const el = document.getElementById('incomeHint');
   if(!el || !taxWiz) return;
   const d = taxWiz.d;
-  const income = (+d.salaryMonthly || 0) * 12 + (+d.bonus || 0) + (+d.freelance || 0);
+  const sal = +d.salaryMonthly || 0, bon = +d.bonus || 0, fre = +d.freelance || 0;
+  const income = sal * 12 + bon + fre;
   el.style.display = income > 0 ? 'block' : 'none';
-  if(income > 0) el.innerHTML = 'รวมรายได้ทั้งปีประมาณ <b class="money">' + baht(income) + '</b>' +
-    ((+d.freelance || 0) > 0 ? ' · มีรายได้ฟรีแลนซ์ → ยื่นแบบ <b>ภ.ง.ด.90</b> (เดี๋ยวระบบอธิบายให้)' : '');
+  if(income > 0){
+    const parts = [];
+    if(sal) parts.push('เงินเดือน ' + fmt(sal) + ' × 12 = ' + fmt(sal * 12));
+    if(bon) parts.push('โบนัส ' + fmt(bon));
+    if(fre) parts.push('ฟรีแลนซ์ ' + fmt(fre));
+    el.innerHTML = 'รวมรายได้ทั้งปีประมาณ <b class="money">' + baht(income) + '</b><br>' +
+      '<span style="opacity:.8">(' + parts.join(' + ') + ')</span>' +
+      (fre > 0 ? '<br>มีรายได้ฟรีแลนซ์ → ยื่นแบบ <b>ภ.ง.ด.90</b> (เดี๋ยวระบบอธิบายให้)' : '');
+  }
 }
 function updateBoostBox(){
   const el = document.getElementById('boostBox');
