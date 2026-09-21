@@ -250,6 +250,7 @@ function load(){
 function save(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
   catch(e){ toast('⚠️ บันทึกข้อมูลลงเครื่องไม่ได้'); }
+  if(typeof scheduleCloudSync === 'function') scheduleCloudSync();   // มีข้อมูลกลางก็ดันขึ้นให้ด้วย
 }
 load();
 
@@ -335,6 +336,7 @@ function renderHome(){
     <div style="margin-bottom:14px">
       <div style="font-size:19px;font-weight:600">สวัสดี${name ? 'คุณ' + esc(name) : ''} 👋</div>
       <div class="label">${thDate(today)} · ${thMonth(mk)}</div>
+      ${subChip() ? `<div style="margin-top:6px">${subChip()}</div>` : ''}
     </div>
     <div class="row2">
       <div class="card" style="margin-bottom:12px">
@@ -366,6 +368,7 @@ function resetAdd(keepType){
   addState = {type: keepType ? addState.type : 'out', cat:null, amount:'', date:todayStr(), note:'', editId:null};
 }
 function renderAdd(){
+  if(isPaywalled()){ $('#content').innerHTML = paywallHtml(); return; }
   const s = addState;
   const cats = db.categories[s.type];
   $('#content').innerHTML = `
@@ -425,13 +428,14 @@ function key(k){
   renderAdd();
 }
 function saveTx(){
+  if(isPaywalled()){ go('add'); return; }
   const s = addState;
   const amt = parseFloat(s.amount);
   if(!s.cat){ toast('แตะเลือกหมวดก่อนนะ'); return; }
   if(!amt || amt <= 0){ toast('ใส่จำนวนเงินก่อนนะ'); return; }
   if(!s.date){ toast('เลือกวันที่ก่อนนะ'); return; }
   if(s.editId){
-    const tx = db.transactions.find(t => t.id === s.editId);
+    const tx = db.transactions.find(t => String(t.id) === String(s.editId));
     if(tx) Object.assign(tx, {type:s.type, cat:s.cat, amount:amt, date:s.date, note:s.note.trim()});
     save(); resetAdd(); toast('แก้ไขแล้ว ✓'); go('list');
   }else{
@@ -443,7 +447,7 @@ function saveTx(){
   }
 }
 function editTx(id){
-  const tx = db.transactions.find(t => t.id === id);
+  const tx = db.transactions.find(t => String(t.id) === String(id));
   if(!tx) return;
   addState = {type:tx.type, cat:tx.cat, amount:String(tx.amount), date:tx.date, note:tx.note || '', editId:id};
   go('add');
@@ -451,8 +455,8 @@ function editTx(id){
 function cancelEdit(){ resetAdd(); go('list'); }
 function delTx(id){
   if(!confirm('ลบรายการนี้ใช่ไหม?')) return;
-  db.transactions = db.transactions.filter(t => t.id !== id);
-  save(); toast('ลบแล้ว');
+  db.transactions = db.transactions.filter(t => String(t.id) !== String(id));
+  save(); cloudDelete(id); toast('ลบแล้ว');
   renderList();
 }
 function addCategory(){
@@ -486,8 +490,8 @@ function txRow(t){
     </div>
     <div class="amt ${t.type==='in' ? 'g' : 'r'}">${t.type==='in' ? '+' : '−'}${fmt(t.amount)}</div>
     <div class="ops">
-      <button title="แก้ไข" onclick="editTx(${t.id})">✏️</button>
-      <button title="ลบ" onclick="delTx(${t.id})">🗑️</button>
+      <button title="แก้ไข" onclick="editTx('${t.id}')">✏️</button>
+      <button title="ลบ" onclick="delTx('${t.id}')">🗑️</button>
     </div>
   </div>`;
 }
@@ -1148,30 +1152,118 @@ function updateSim(){
 }
 /* ===== END TAX MODULE ===== */
 
+/* ===== CLOUD SYNC (TASK 14-15) — ข้อมูลกลางผูกบัญชีไลน์ ===== */
+/* เปิดผ่านไลน์ + มีเซิร์ฟเวอร์ = ข้อมูล sync อัตโนมัติ · เปิดนอกไลน์/ไฟล์ตรง ๆ = โหมดในเครื่องเหมือนเดิม */
+const cloud = { on:false, token:null, sub:null, timer:null };
+const hasServer = location.protocol === 'http:' || location.protocol === 'https:';
+
+async function cloudConnect(){
+  if(!hasServer || !window.liff || !liff.getIDToken) return;
+  try{
+    const token = liff.getIDToken();
+    if(!token) return;
+    cloud.token = token;
+    const res = await fetch('/api/data', { headers: { Authorization: 'Bearer ' + token } });
+    if(!res.ok) return;                        // เซิร์ฟเวอร์ยังไม่ตั้งค่า PRO → ใช้โหมดในเครื่อง
+    const remote = await res.json();
+    // รวมข้อมูล: ของบนเซิร์ฟเวอร์เป็นหลัก + รายการในเครื่องที่ยังไม่เคยขึ้นไป (ยกของเก่าขึ้นให้อัตโนมัติ)
+    const serverIds = new Set(remote.transactions.map(t => String(t.id)));
+    const localOnly = db.transactions.filter(t => !serverIds.has(String(t.id)));
+    db.transactions = remote.transactions
+      .map(t => ({ id: t.id, date: t.date, type: t.type, amount: +t.amount, cat: t.cat, note: t.note || '' }))
+      .concat(localOnly);
+    if(remote.taxProfile) db.taxProfile = remote.taxProfile;
+    if(remote.categories && remote.categories.out) db.categories = remote.categories;
+    if(remote.displayName && !db.settings.name) db.settings.name = remote.displayName;
+    cloud.sub = remote.subscription;
+    cloud.on = true;
+    save();                                    // จะดัน localOnly + taxProfile ในเครื่องขึ้นเซิร์ฟเวอร์รอบแรก
+    go(view);                                  // วาดหน้าปัจจุบันใหม่ด้วยข้อมูลที่รวมแล้ว
+    console.log('เชื่อมข้อมูลกลางแล้ว ✓');
+  }catch(e){ console.warn('เชื่อมข้อมูลกลางไม่สำเร็จ — ใช้ข้อมูลในเครื่องไปก่อน:', e); }
+}
+
+function scheduleCloudSync(){
+  if(!cloud.on) return;
+  clearTimeout(cloud.timer);
+  cloud.timer = setTimeout(async () => {
+    try{
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + cloud.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactions: db.transactions.map(t => ({ id: String(t.id), date: t.date, type: t.type, amount: t.amount, cat: t.cat, note: t.note || '' })),
+          taxProfile: db.taxProfile, categories: db.categories, settings: { name: db.settings.name }
+        })
+      });
+      if(res.ok){ const out = await res.json(); cloud.sub = out.subscription; }
+    }catch(e){ /* เน็ตหลุด — ข้อมูลอยู่ในเครื่องครบ เดี๋ยว sync รอบถัดไป */ }
+  }, 1200);
+}
+
+function cloudDelete(id){
+  if(!cloud.on) return;
+  fetch('/api/tx', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + cloud.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', tx: { id: String(id) } })
+  }).catch(() => {});
+}
+
+/* ---- สถานะสมาชิก + หน้าสมัคร ---- */
+function isPaywalled(){ return !!(cloud.sub && cloud.sub.status === 'expired'); }
+function subChip(){
+  if(!cloud.sub) return '';
+  const s = cloud.sub;
+  if(s.status === 'active') return `<span class="chip good">สมาชิกถึง ${new Date(s.paidUntil).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'})} ✓</span>`;
+  if(s.status === 'trial') return `<span class="chip info">ทดลองฟรีเหลือ ${s.daysLeft} วัน</span>`;
+  return `<span class="chip bad">หมดช่วงทดลองใช้ — แตะเมนูจดเงินเพื่อสมัคร</span>`;
+}
+function paywallHtml(){
+  const s = cloud.sub || {};
+  const qr = s.promptpayId ? `https://promptpay.io/${encodeURIComponent(s.promptpayId)}/${s.price}.png` : '';
+  return `<div class="card" style="text-align:center;padding:28px 20px">
+      <div style="font-size:42px">💚</div>
+      <h3 style="font-size:19px;margin:8px 0 4px">สมัครสมาชิกนับตัง</h3>
+      <div class="label">หมดช่วงทดลองใช้ฟรีแล้ว — สมัครเพื่อจดเงินต่อ<br>ข้อมูลเดิมของคุณอยู่ครบ ไม่หายไปไหน</div>
+      <div class="money" style="font-size:32px;margin:12px 0 2px">฿${(s.price||0).toLocaleString()}</div>
+      <div class="label">ต่อปี</div>
+      ${qr ? `<img src="${qr}" alt="QR พร้อมเพย์" style="width:200px;max-width:80%;border-radius:12px;margin:14px 0;border:1px solid var(--line)" onerror="this.style.display='none'">` : ''}
+      ${s.promptpayId ? `<div style="font-size:15px">โอนพร้อมเพย์: <b class="money">${esc(s.promptpayId)}</b></div>` : '<div class="label">ติดต่อแอดมินในแชทไลน์เพื่อชำระเงิน</div>'}
+      <div class="hint" style="text-align:left;margin-top:14px">📌 โอนแล้ว<b>ส่งรูปสลิปในแชทไลน์ของนับตัง</b>ได้เลย
+      ระบบจะแจ้งแอดมินตรวจสอบและเปิดใช้งานให้ (รหัสสมาชิกของคุณ: <b>${esc(s.code||'-')}</b>)</div>
+      <div class="label" style="margin-top:10px">ระหว่างนี้ยังเปิดดูข้อมูลเดิมและออกรายงาน CSV ได้ตามปกติ</div>
+    </div>`;
+}
+/* ===== END CLOUD SYNC ===== */
+
 /* ===== LIFF (TASK 7) ===== */
 /* เปิดในไลน์ผ่าน LIFF: ใส่ LIFF ID ตรงนี้จุดเดียว หรือกรอกในหน้าตั้งค่า ⚙️ ก็ได้
    ไม่ใส่ = แอพทำงานในเบราว์เซอร์ปกติทุกอย่าง · โหลด SDK ไม่ได้ = ไม่พัง แค่ไม่ทักชื่อจากไลน์ */
 const LIFF_ID = '2011686139-OUNayts9'; // LIFF ID ของแอพนี้ (เจ้าของยืนยันให้ฝังถาวร — LIFF ID เป็นค่าที่เปิดเผยในลิงก์ liff.line.me อยู่แล้ว)
 let liffReady = false;
+async function liffStart(id){
+  try{
+    await liff.init({liffId: id});
+    liffReady = true;
+    if(liff.isLoggedIn()){
+      const prof = await liff.getProfile().catch(() => null);
+      if(prof && prof.displayName && !db.settings.name){
+        db.settings.name = prof.displayName;   // ทักทายด้วยชื่อจากไลน์
+        save();
+        if(view === 'home') renderHome();
+      }
+      cloudConnect();                          // ต่อฐานข้อมูลกลาง (มีเซิร์ฟเวอร์ถึงจะติด)
+    }
+  }catch(e){ console.warn('LIFF init ไม่สำเร็จ (ใช้งานต่อได้ปกติ):', e); }
+}
 function initLiff(){
   const id = ((db.settings.liffId || '') || LIFF_ID).trim();
-  if(!id || liffReady || window.liff) return;
+  if(!id || liffReady) return;
+  if(window.liff){ liffStart(id); return; }
   const s = document.createElement('script');
   s.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-  s.onload = async () => {
-    try{
-      await liff.init({liffId: id});
-      liffReady = true;
-      if(liff.isLoggedIn()){
-        const prof = await liff.getProfile();
-        if(prof && prof.displayName && !db.settings.name){
-          db.settings.name = prof.displayName;   // ทักทายด้วยชื่อจากไลน์
-          save();
-          if(view === 'home') renderHome();
-        }
-      }
-    }catch(e){ console.warn('LIFF init ไม่สำเร็จ (ใช้งานต่อได้ปกติ):', e); }
-  };
+  s.onload = () => liffStart(id);
   s.onerror = () => console.warn('โหลด LIFF SDK ไม่ได้ — ใช้งานนอกไลน์ได้ตามปกติ');
   document.head.appendChild(s);
 }
