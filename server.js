@@ -209,7 +209,13 @@ async function handleApi(req, res, pathname, body) {
     if (!slipReady()) missing.push('ANTHROPIC_API_KEY (อ่านสลิป)');
     if (!process.env.BANK_ACCOUNT && !process.env.PROMPTPAY_ID) missing.push('BANK_ACCOUNT หรือ PROMPTPAY_ID (ช่องทางรับเงิน ตอนเปิดขาย)');
     if (!line.CFG.liffUrl()) missing.push('LIFF_URL');
-    return json(200, { ok: missing.length === 0, missing, hint: missing.length ? 'ดูวิธีตั้งค่าใน SETUP-PRO.md' : 'พร้อมใช้งานครบ ✓' });
+    const database = db.ready() ? await db.ping() : { ok: false, message: 'ยังไม่ได้ตั้งค่า SUPABASE_URL / SUPABASE_SERVICE_KEY' };
+    return json(200, {
+      ok: missing.length === 0 && database.ok,
+      database,
+      missing,
+      hint: missing.length ? 'ดูวิธีตั้งค่าใน SETUP-PRO.md' : (database.ok ? 'พร้อมใช้งานครบ ✓' : 'ตัวแปรครบ แต่ฐานข้อมูลยังมีปัญหา — ดูช่อง database')
+    });
   }
 
   if (!db.ready()) return json(503, { error: 'ยังไม่ได้ตั้งค่าฐานข้อมูล (ดู SETUP-PRO.md)' });
