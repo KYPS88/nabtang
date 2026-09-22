@@ -1286,7 +1286,18 @@ function initLiff(){
 initLiff();
 /* ===== END LIFF ===== */
 
-go('home');
+/* เปิดจากปุ่ม "คำนวณภาษี" ในเมนูไลน์ (?view=tax) → เข้าหน้าภาษีทันที
+   LIFF อาจส่ง query มาตรง ๆ หรือห่อไว้ใน liff.state ก็ได้ รองรับทั้งคู่ */
+function requestedView(){
+  try{
+    const qs = new URLSearchParams(location.search);
+    let v = qs.get('view');
+    const st = qs.get('liff.state');
+    if(!v && st) v = new URLSearchParams(st.replace(/^\?/, '')).get('view');
+    return v;
+  }catch(e){ return null; }
+}
+go(TITLES[requestedView()] ? requestedView() : 'home');
 </script>
 </body>
 </html>
