@@ -36,3 +36,9 @@ create table if not exists payments (
   decided_at      timestamptz
 );
 create index if not exists idx_pay_user on payments (user_id, status);
+
+-- เกราะกันการยิงเข้าฐานข้อมูลตรง ๆ จากภายนอก (เปิด RLS โดยไม่สร้าง policy = คนนอกอ่าน/เขียนไม่ได้เลย)
+-- เซิร์ฟเวอร์นับตังใช้ service key ซึ่งไม่ติดกฎนี้ ทำงานได้ปกติ
+alter table users enable row level security;
+alter table transactions enable row level security;
+alter table payments enable row level security;
