@@ -43,11 +43,12 @@ function helpText() {
 }
 
 // ช่องทางรับเงิน: บัญชีธนาคาร (BANK_*) และ/หรือ พร้อมเพย์ (PROMPTPAY_ID) — ตั้งอย่างน้อย 1 อย่าง
+const bankAccountName = () => process.env.BANK_ACCOUNT_NAME || process.env.ACCOUNT_NAME || '';
 function payMethodLines() {
   const lines = [];
   if (process.env.BANK_ACCOUNT) {
     lines.push(`โอนเข้าบัญชี${process.env.BANK_NAME ? ' ' + process.env.BANK_NAME : ''} เลขที่ ${process.env.BANK_ACCOUNT}` +
-      (process.env.BANK_ACCOUNT_NAME ? `\nชื่อบัญชี: ${process.env.BANK_ACCOUNT_NAME}` : ''));
+      (bankAccountName() ? `\nชื่อบัญชี: ${bankAccountName()}` : ''));
   }
   if (process.env.PROMPTPAY_ID) lines.push(`${lines.length ? 'หรือ' : ''}พร้อมเพย์: ${process.env.PROMPTPAY_ID}`);
   if (!lines.length) lines.push('ติดต่อแอดมินเพื่อชำระเงิน');
@@ -221,7 +222,7 @@ async function handleApi(req, res, pathname, body) {
     ...sub, code: user.code,
     promptpayId: process.env.PROMPTPAY_ID || '',
     bankName: process.env.BANK_NAME || '', bankAccount: process.env.BANK_ACCOUNT || '',
-    bankAccountName: process.env.BANK_ACCOUNT_NAME || ''
+    bankAccountName: bankAccountName()
   };
 
   if (pathname === '/api/data' && req.method === 'GET') {
