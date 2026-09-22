@@ -16,10 +16,14 @@
 2. รอสร้างเสร็จ (~2 นาที) → เมนูซ้าย **SQL Editor** → **New query**
    → เปิดไฟล์ `supabase/schema.sql` ใน repo นี้ คัดลอกทั้งไฟล์มาวาง → กด **Run**
    → ขึ้น Success = ตารางครบแล้ว (users / transactions / payments)
-3. เก็บกุญแจ 2 ตัว: เมนูซ้าย **Project Settings → API**
-   - **Project URL** เช่น `https://abcdxyz.supabase.co` → นี่คือ `SUPABASE_URL`
-   - **service_role key** (กด Reveal) → นี่คือ `SUPABASE_SERVICE_KEY`
-   ⚠️ service_role key เป็น**ความลับจริง** ห้ามใส่ในโค้ด ห้ามส่งให้ใคร — ใส่เฉพาะใน Railway (ด่าน 4)
+3. เก็บกุญแจ 2 ตัว:
+   - **Project URL**: เมนูซ้าย Settings → **Data API** → ช่อง Project URL
+     เช่น `https://abcdxyz.supabase.co` → นี่คือ `SUPABASE_URL`
+   - **Secret key**: เมนูซ้าย Settings → **API Keys** → หัวข้อ **Secret keys** →
+     กดรูปตา/Copy ที่คีย์ `default` (ขึ้นต้น `sb_secret_...`) → นี่คือ `SUPABASE_SERVICE_KEY`
+     (ระบบรองรับคีย์แบบเก่าด้วย: แท็บ "Legacy anon, service_role" → ใช้ service_role ก็ได้)
+   ⚠️ Secret key เป็น**ความลับจริง** ห้ามใส่ในโค้ด ห้ามส่งให้ใคร — ใส่เฉพาะใน Railway (ด่าน 4)
+   ส่วน Publishable key (`sb_publishable_...`) ไม่ต้องใช้ในระบบนี้
 
 ## ด่าน 2 — เปิดบอทรับแชท (LINE Messaging API — ฟรี)
 
