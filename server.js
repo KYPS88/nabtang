@@ -84,31 +84,25 @@ async function handleTextMessage(ev) {
     }
   }
 
-  // ----- คำสั่งแอดมิน: ติดตั้ง Rich Menu (แถบเมนูถาวรใต้ช่องแชท) จากไฟล์ richmenu.png -----
+  // ----- คำสั่งแอดมิน: ติดตั้ง Rich Menu จากไฟล์ richmenu.png -----
+  // แนวคิด: จดเงิน = พิมพ์ในแชทเท่านั้น · เมนูมีปุ่มเดียวคือ "คำนวณภาษี" เปิดหน้าภาษีในแอพตรง ๆ
   if (isAdmin && text.replace(/\s+/g, '') === 'ตั้งเมนู') {
     const img = fs.readFileSync(path.join(ROOT, 'richmenu.png'));
     for (const m of await line.listRichMenus()) await line.deleteRichMenu(m.richMenuId).catch(() => {});
-    const openApp = line.CFG.liffUrl()
-      ? { type: 'uri', uri: line.CFG.liffUrl() }
-      : { type: 'message', text: 'แอพ' };
-    const cell = (col, row, action) => ({
-      bounds: { x: col * 833, y: row * 843, width: col === 2 ? 834 : 833, height: 843 }, action
-    });
+    const taxAction = line.CFG.liffUrl()
+      ? { type: 'uri', uri: line.CFG.liffUrl() + '?view=tax' }
+      : { type: 'message', text: 'ภาษี' };
     const id = await line.createRichMenu({
-      size: { width: 2500, height: 1686 }, selected: true,
-      name: 'nabtang-menu', chatBarText: 'เมนูนับตัง',
+      size: { width: 2500, height: 843 }, selected: true,
+      name: 'nabtang-menu', chatBarText: 'คำนวณภาษี',
       areas: [
-        cell(0, 0, openApp),
-        cell(1, 0, { type: 'message', text: 'สรุป' }),
-        cell(2, 0, { type: 'message', text: 'สรุปเดือน' }),
-        cell(0, 1, { type: 'message', text: 'ลบล่าสุด' }),
-        cell(1, 1, { type: 'message', text: 'ช่วยเหลือ' }),
-        cell(2, 1, { type: 'message', text: 'สมัคร' })
+        // เฉพาะการ์ดซ้าย (คำนวณภาษี) เท่านั้นที่กดได้ — ฝั่งขวาเป็นคำแนะนำเฉย ๆ
+        { bounds: { x: 0, y: 0, width: 1666, height: 843 }, action: taxAction }
       ]
     });
     await line.uploadRichMenuImage(id, img);
     await line.setDefaultRichMenu(id);
-    return line.reply(ev.replyToken, 'ติดเมนูใต้แชทให้ทุกคนแล้ว ✓\nถ้ายังไม่เห็น ให้ปิดห้องแชทแล้วเปิดใหม่ครับ');
+    return line.reply(ev.replyToken, 'ติดเมนู "คำนวณภาษี" ใต้แชทให้ทุกคนแล้ว ✓\nถ้ายังไม่เห็น ให้ปิดห้องแชทแล้วเปิดใหม่ครับ');
   }
 
   const profile = { name: '' };
@@ -138,6 +132,11 @@ async function handleTextMessage(ev) {
   }
   if (['แอพ', 'แอป', 'เมนู', 'app'].includes(cmd.toLowerCase())) {
     return line.reply(ev.replyToken, `เปิดแอพนับตังได้ที่นี่เลย 👇\n${line.CFG.liffUrl() || 'ยังไม่ได้ตั้งค่าลิงก์แอพ (LIFF_URL)'}`);
+  }
+  if (['ภาษี', 'คำนวณภาษี', 'คิดภาษี', 'ลดภาษี'].includes(cmd)) {
+    return line.reply(ev.replyToken, line.CFG.liffUrl()
+      ? `คำนวณภาษี ภ.ง.ด.90/91 + วิธีลดภาษี (2 นาที ไม่ต้องรู้เรื่องภาษีมาก่อน) แตะเลย 👇\n${line.CFG.liffUrl()}?view=tax`
+      : 'ยังไม่ได้ตั้งค่าลิงก์เครื่องคิดภาษี (LIFF_URL) ครับ');
   }
   if (['ช่วยเหลือ', 'help', 'วิธีใช้'].includes(cmd.toLowerCase())) {
     return line.reply(ev.replyToken, helpText());
