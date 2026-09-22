@@ -42,11 +42,21 @@ function helpText() {
     'คำสั่งอื่น: "สรุป" · "สรุปเดือน" · "ลบล่าสุด" · "แอพ"'].join('\n');
 }
 
+// ช่องทางรับเงิน: บัญชีธนาคาร (BANK_*) และ/หรือ พร้อมเพย์ (PROMPTPAY_ID) — ตั้งอย่างน้อย 1 อย่าง
+function payMethodLines() {
+  const lines = [];
+  if (process.env.BANK_ACCOUNT) {
+    lines.push(`โอนเข้าบัญชี${process.env.BANK_NAME ? ' ' + process.env.BANK_NAME : ''} เลขที่ ${process.env.BANK_ACCOUNT}` +
+      (process.env.BANK_ACCOUNT_NAME ? `\nชื่อบัญชี: ${process.env.BANK_ACCOUNT_NAME}` : ''));
+  }
+  if (process.env.PROMPTPAY_ID) lines.push(`${lines.length ? 'หรือ' : ''}พร้อมเพย์: ${process.env.PROMPTPAY_ID}`);
+  if (!lines.length) lines.push('ติดต่อแอดมินเพื่อชำระเงิน');
+  return lines;
+}
 function paywallText(user, sub) {
-  const pp = process.env.PROMPTPAY_ID;
   return [`หมดช่วงทดลองใช้ฟรีแล้วครับ 🙏`,
     `สมัครสมาชิกนับตัง ปีละ ${fmt(sub.price)} บาท`,
-    pp ? `โอนพร้อมเพย์: ${pp}` : 'ติดต่อแอดมินเพื่อชำระเงิน',
+    ...payMethodLines(),
     `แล้วส่งรูปสลิปมาในแชทนี้ได้เลย เดี๋ยวเปิดให้ทันทีที่ตรวจสอบเสร็จ`,
     `(รหัสสมาชิกของคุณ: ${user.code})`].join('\n');
 }
@@ -196,7 +206,7 @@ async function handleApi(req, res, pathname, body) {
     if (!line.CFG.loginChannelId()) missing.push('LINE_LOGIN_CHANNEL_ID');
     if (!line.CFG.adminId()) missing.push('ADMIN_LINE_USER_ID');
     if (!slipReady()) missing.push('ANTHROPIC_API_KEY (อ่านสลิป)');
-    if (!process.env.PROMPTPAY_ID) missing.push('PROMPTPAY_ID (ตอนเปิดขาย)');
+    if (!process.env.BANK_ACCOUNT && !process.env.PROMPTPAY_ID) missing.push('BANK_ACCOUNT หรือ PROMPTPAY_ID (ช่องทางรับเงิน ตอนเปิดขาย)');
     if (!line.CFG.liffUrl()) missing.push('LIFF_URL');
     return json(200, { ok: missing.length === 0, missing, hint: missing.length ? 'ดูวิธีตั้งค่าใน SETUP-PRO.md' : 'พร้อมใช้งานครบ ✓' });
   }
@@ -207,7 +217,12 @@ async function handleApi(req, res, pathname, body) {
   const user = await db.getOrCreateUser(auth.userId, auth.name);
   if (auth.name && !user.display_name) db.saveUserFields(user.id, { display_name: auth.name }).catch(() => {});
   const sub = db.subscription(user);
-  const subOut = { ...sub, code: user.code, promptpayId: process.env.PROMPTPAY_ID || '' };
+  const subOut = {
+    ...sub, code: user.code,
+    promptpayId: process.env.PROMPTPAY_ID || '',
+    bankName: process.env.BANK_NAME || '', bankAccount: process.env.BANK_ACCOUNT || '',
+    bankAccountName: process.env.BANK_ACCOUNT_NAME || ''
+  };
 
   if (pathname === '/api/data' && req.method === 'GET') {
     const txs = await db.listTxs(user.id);

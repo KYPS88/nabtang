@@ -1237,8 +1237,15 @@ function paywallHtml(){
       <div class="label">หมดช่วงทดลองใช้ฟรีแล้ว — สมัครเพื่อจดเงินต่อ<br>ข้อมูลเดิมของคุณอยู่ครบ ไม่หายไปไหน</div>
       <div class="money" style="font-size:32px;margin:12px 0 2px">฿${(s.price||0).toLocaleString()}</div>
       <div class="label">ต่อปี</div>
+      ${s.bankAccount ? `<div style="margin:14px 0 4px;background:var(--bg);border-radius:12px;padding:14px">
+        <div class="label">โอนเข้าบัญชี${s.bankName ? ' ' + esc(s.bankName) : ''}</div>
+        <div class="money" style="font-size:23px;letter-spacing:1px;margin:2px 0">${esc(s.bankAccount)}</div>
+        ${s.bankAccountName ? `<div class="label">ชื่อบัญชี: ${esc(s.bankAccountName)}</div>` : ''}
+        <button class="chip info" style="margin-top:8px;cursor:pointer" onclick="try{navigator.clipboard.writeText('${esc(s.bankAccount)}').then(()=>toast('คัดลอกเลขบัญชีแล้ว ✓'))}catch(e){}">📋 คัดลอกเลขบัญชี</button>
+      </div>` : ''}
       ${qr ? `<img src="${qr}" alt="QR พร้อมเพย์" style="width:200px;max-width:80%;border-radius:12px;margin:14px 0;border:1px solid var(--line)" onerror="this.style.display='none'">` : ''}
-      ${s.promptpayId ? `<div style="font-size:15px">โอนพร้อมเพย์: <b class="money">${esc(s.promptpayId)}</b></div>` : '<div class="label">ติดต่อแอดมินในแชทไลน์เพื่อชำระเงิน</div>'}
+      ${s.promptpayId ? `<div style="font-size:15px">${s.bankAccount ? 'หรือ' : ''}พร้อมเพย์: <b class="money">${esc(s.promptpayId)}</b></div>` : ''}
+      ${!s.bankAccount && !s.promptpayId ? '<div class="label">ติดต่อแอดมินในแชทไลน์เพื่อชำระเงิน</div>' : ''}
       <div class="hint" style="text-align:left;margin-top:14px">📌 โอนแล้ว<b>ส่งรูปสลิปในแชทไลน์ของนับตัง</b>ได้เลย
       ระบบจะแจ้งแอดมินตรวจสอบและเปิดใช้งานให้ (รหัสสมาชิกของคุณ: <b>${esc(s.code||'-')}</b>)</div>
       <div class="label" style="margin-top:10px">ระหว่างนี้ยังเปิดดูข้อมูลเดิมและออกรายงาน CSV ได้ตามปกติ</div>
