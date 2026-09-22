@@ -84,6 +84,33 @@ async function handleTextMessage(ev) {
     }
   }
 
+  // ----- คำสั่งแอดมิน: ติดตั้ง Rich Menu (แถบเมนูถาวรใต้ช่องแชท) จากไฟล์ richmenu.png -----
+  if (isAdmin && text.replace(/\s+/g, '') === 'ตั้งเมนู') {
+    const img = fs.readFileSync(path.join(ROOT, 'richmenu.png'));
+    for (const m of await line.listRichMenus()) await line.deleteRichMenu(m.richMenuId).catch(() => {});
+    const openApp = line.CFG.liffUrl()
+      ? { type: 'uri', uri: line.CFG.liffUrl() }
+      : { type: 'message', text: 'แอพ' };
+    const cell = (col, row, action) => ({
+      bounds: { x: col * 833, y: row * 843, width: col === 2 ? 834 : 833, height: 843 }, action
+    });
+    const id = await line.createRichMenu({
+      size: { width: 2500, height: 1686 }, selected: true,
+      name: 'nabtang-menu', chatBarText: 'เมนูนับตัง',
+      areas: [
+        cell(0, 0, openApp),
+        cell(1, 0, { type: 'message', text: 'สรุป' }),
+        cell(2, 0, { type: 'message', text: 'สรุปเดือน' }),
+        cell(0, 1, { type: 'message', text: 'ลบล่าสุด' }),
+        cell(1, 1, { type: 'message', text: 'ช่วยเหลือ' }),
+        cell(2, 1, { type: 'message', text: 'สมัคร' })
+      ]
+    });
+    await line.uploadRichMenuImage(id, img);
+    await line.setDefaultRichMenu(id);
+    return line.reply(ev.replyToken, 'ติดเมนูใต้แชทให้ทุกคนแล้ว ✓\nถ้ายังไม่เห็น ให้ปิดห้องแชทแล้วเปิดใหม่ครับ');
+  }
+
   const profile = { name: '' };
   const user = await db.getOrCreateUser(userId, profile.name);
   const sub = db.subscription(user);
